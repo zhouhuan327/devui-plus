@@ -1,0 +1,213 @@
+@mixin menu-item {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  padding: 0 16px 0 0;
+
+  list-style: none;
+  outline: none;
+  cursor: pointer;
+
+  transition: all 0.2s ease-out;
+
+  &:not(.is-disabled) {
+    &:focus,
+    &:hover {
+      color: var(--#{$variable-prefix}color-primary);
+
+      background-color: rgb(var(--#{$variable-prefix}color-primary-rgb) / 8%);
+    }
+  }
+}
+
+@mixin indicator($selector) {
+  &.is-first {
+    .#{$variable-prefix}#{$selector}__indicator > div {
+      bottom: 0;
+
+      height: calc(100% - 8px);
+
+      &::before {
+        top: 0;
+
+        height: calc(100% - 8px);
+
+        transform-origin: top;
+      }
+    }
+  }
+
+  &.is-last {
+    .#{$variable-prefix}#{$selector}__indicator > div {
+      top: 0;
+
+      height: calc(100% - 8px);
+
+      &::before {
+        bottom: 0;
+
+        height: calc(100% - 8px);
+
+        transform-origin: bottom;
+      }
+    }
+  }
+
+  .#{$variable-prefix}#{$selector}__indicator {
+    position: relative;
+
+    width: 0;
+    height: 100%;
+
+    & > div {
+      position: absolute;
+      left: -8px;
+
+      width: 2px;
+      height: 100%;
+
+      background-color: var(--#{$variable-prefix}background-color-indicator);
+
+      &::before {
+        position: absolute;
+
+        top: 8px;
+        left: 0;
+
+        display: block;
+        width: 2px;
+        height: calc(100% - 16px);
+
+        background-color: var(--#{$variable-prefix}color-primary-lighter);
+        transform: scaleY(0);
+
+        transition: transform 0.2s linear;
+
+        content: '';
+      }
+    }
+  }
+}
+
+@include b(menu) {
+  position: relative;
+
+  padding: 8px 0;
+
+  color: var(--#{$variable-prefix}color-step-700);
+
+  @include font-size(0.95rem);
+}
+
+@include b(menu-sub) {
+  @include menu-item;
+
+  &:not(.is-disabled) {
+    &:focus,
+    &:hover {
+      .#{$variable-prefix}menu-sub__arrow {
+        color: var(--#{$variable-prefix}color-primary-lighter);
+      }
+    }
+  }
+
+  @include when(disabled) {
+    @include utils-disabled();
+  }
+
+  @include when(active) {
+    color: var(--#{$variable-prefix}color-primary);
+    font-weight: 500;
+
+    .#{$variable-prefix}menu-sub__indicator > div::before {
+      transform: scaleY(1);
+    }
+
+    .#{$variable-prefix}menu-sub__arrow {
+      color: var(--#{$variable-prefix}color-primary-lighter);
+    }
+  }
+
+  @include indicator(menu-sub);
+
+  @include e(icon) {
+    flex: 0 0 24px;
+
+    @include font-size(1.05rem);
+  }
+
+  @include e(title) {
+    flex: 1 0 0;
+
+    @include utils-ellipsis;
+  }
+
+  @include e(arrow) {
+    color: var(--#{$variable-prefix}color-step-450);
+
+    transition: color 0.2s ease-out, transform 0.2s linear;
+  }
+
+  @include e(popup) {
+    &.#{$variable-prefix}popup {
+      background-color: var(--#{$variable-prefix}background-color);
+      box-shadow: 0 4px 20px 0 var(--#{$variable-prefix}shadow-color);
+    }
+
+    .#{$variable-prefix}menu-list {
+      min-width: 240px;
+      padding: 8px;
+    }
+  }
+}
+
+@include b(menu-list) {
+  position: relative;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+@include b(menu-group) {
+  width: 100%;
+  padding: 8px 16px 8px 0;
+
+  color: var(--#{$variable-prefix}color-step-400);
+
+  outline: none;
+
+  @include font-size(0.85rem);
+
+  @include utils-ellipsis;
+}
+
+@include b(menu-item) {
+  @include menu-item;
+
+  @include when(disabled) {
+    @include utils-disabled();
+  }
+
+  @include when(active) {
+    color: var(--#{$variable-prefix}color-primary);
+    font-weight: 500;
+
+    .#{$variable-prefix}menu-item__indicator > div::before {
+      transform: scaleY(1);
+    }
+  }
+
+  @include indicator(menu-item);
+
+  @include e(title) {
+    flex: 1 0 0;
+
+    @include utils-ellipsis;
+  }
+}

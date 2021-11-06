@@ -1,0 +1,149 @@
+{
+  "version": 2,
+  "projects": {
+    "site": {
+      "root": "site",
+      "sourceRoot": "site/src",
+      "projectType": "application",
+      "targets": {
+        "build-base": {
+          "executor": "./tools/executors/site/build-base:build-base",
+          "options": {},
+          "configurations": {
+            "production": {}
+          }
+        },
+        "build": {
+          "executor": "@nrwl/web:build",
+          "outputs": ["{options.outputPath}"],
+          "options": {
+            "deployUrl": "/",
+            "outputPath": "dist/site",
+            "index": "site/src/index.html",
+            "main": "site/src/main.tsx",
+            "polyfills": "site/src/polyfills.ts",
+            "tsConfig": "site/tsconfig.app.json",
+            "assets": ["site/src/favicon.ico", "site/src/assets"],
+            "styles": ["site/src/styles.scss"],
+            "scripts": [],
+            "webpackConfig": "@nrwl/react/plugins/webpack"
+          },
+          "dependsOn": [
+            {
+              "target": "build-base",
+              "projects": "self"
+            }
+          ],
+          "configurations": {
+            "production": {
+              "fileReplacements": [
+                {
+                  "replace": "site/src/environments/environment.ts",
+                  "with": "site/src/environments/environment.prod.ts"
+                }
+              ],
+              "optimization": true,
+              "outputHashing": "all",
+              "sourceMap": false,
+              "extractCss": true,
+              "namedChunks": false,
+              "extractLicenses": true,
+              "vendorChunk": false,
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kb",
+                  "maximumError": "1mb"
+                }
+              ]
+            }
+          }
+        },
+        "serve-base": {
+          "executor": "@nrwl/web:dev-server",
+          "options": {
+            "buildTarget": "site:build",
+            "port": 4300,
+            "open": true
+          }
+        },
+        "serve": {
+          "executor": "./tools/executors/multiple:multiple",
+          "options": {
+            "tasks": [
+              {
+                "targetDescription": {
+                  "project": "site",
+                  "target": "build-base"
+                },
+                "options": {
+                  "watch": true
+                }
+              },
+              {
+                "targetDescription": {
+                  "project": "site",
+                  "target": "serve-base"
+                }
+              }
+            ]
+          }
+        },
+        "lint": {
+          "executor": "@nrwl/linter:eslint",
+          "options": {
+            "lintFilePatterns": ["site/**/*.{ts,tsx,js,jsx}"]
+          }
+        }
+      },
+      "tags": []
+    },
+    "ui": {
+      "root": "ui",
+      "sourceRoot": "ui/src",
+      "projectType": "library",
+      "targets": {
+        "build": {
+          "executor": "@nrwl/web:package",
+          "outputs": ["{options.outputPath}"],
+          "options": {
+            "outputPath": "dist/ui",
+            "tsConfig": "ui/tsconfig.lib.json",
+            "project": "ui/package.json",
+            "entryFile": "ui/src/index.ts",
+            "external": ["react", "react-dom", "react/jsx-runtime"],
+            "rollupConfig": "@nrwl/react/plugins/bundle-rollup",
+            "assets": [
+              {
+                "glob": "ui/README.md",
+                "input": ".",
+                "output": "."
+              },
+              {
+                "glob": "ui/src/styles",
+                "input": ".",
+                "output": "."
+              }
+            ]
+          }
+        },
+        "lint": {
+          "executor": "@nrwl/linter:eslint",
+          "options": {
+            "lintFilePatterns": ["ui/**/*.{ts,tsx,js,jsx}"]
+          }
+        },
+        "test": {
+          "executor": "@nrwl/jest:jest",
+          "outputs": ["coverage/ui"],
+          "options": {
+            "jestConfig": "ui/jest.config.js",
+            "passWithNoTests": true,
+            "coverageReporters": ["clover", "json", "lcov", "text"]
+          }
+        }
+      },
+      "tags": []
+    }
+  }
+}
