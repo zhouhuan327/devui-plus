@@ -58,7 +58,7 @@ export function App() {
   }, [asyncCapture, mainEl]);
 
   return (
-    <DI18NContext.Provider value={i18n.language as 'en-US' | 'zh-Hant'}>
+    <DI18NContext.Provider value={{ lang: i18n.language as 'en-US' | 'zh-Hant' }}>
       <AppHeader />
       <AppSidebar />
       <main ref={mainRef} className="app-main">

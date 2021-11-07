@@ -29,7 +29,7 @@ export function DFooter(props: DFooterProps) {
   } = props;
 
   const dPrefix = useDPrefixConfig();
-  const [t] = useTranslation();
+  const [t] = useTranslation('DFooter');
 
   //#region Getters.
   /*
@@ -65,11 +65,11 @@ export function DFooter(props: DFooterProps) {
       {dButtons.map((button, index) =>
         button === 'cancel' ? (
           <DButton key="cancel" {...dCancelButtonProps} dType="secondary" onClick={handCancelClick}>
-            {t('DFooter', 'Cancel')}
+            {t('Cancel')}
           </DButton>
         ) : button === 'ok' ? (
           <DButton key="ok" {...dOkButtonProps} onClick={handOkClick}>
-            {t('DFooter', 'OK')}
+            {t('OK')}
           </DButton>
         ) : (
           <React.Fragment key={index}>{button}</React.Fragment>
