@@ -301,7 +301,7 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   useLockScroll(dVisible && isUndefined(dContainer));
   //#endregion
 
-  //#region transition
+  //#region Transition
   const transitionStateList = useMemo<DTransitionStateList>(() => {
     const transform =
       dPlacement === 'top'

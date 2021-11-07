@@ -77,7 +77,7 @@ export function DMask(props: DMaskProps) {
   );
   //#endregion
 
-  //#region transition
+  //#region Transition
   const transitionStateList = useMemo<DTransitionStateList>(() => {
     return {
       'enter-from': { opacity: 0 },

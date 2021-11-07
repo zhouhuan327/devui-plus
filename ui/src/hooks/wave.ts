@@ -11,7 +11,6 @@ export function useWave() {
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
     let removeChild: null | (() => void) = null;
 
     const ob = subject$.subscribe({

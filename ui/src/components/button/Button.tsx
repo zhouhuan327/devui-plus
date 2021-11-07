@@ -91,7 +91,7 @@ export const DButton = React.forwardRef<HTMLButtonElement, DButtonProps>((props,
   );
   //#endregion
 
-  //#region transition
+  //#region Transition
   const transitionStyle = useCollapseTransition({ dVisible: dLoading, dDirection: 'width', dTarget: loadingEl });
   //#endregion
 

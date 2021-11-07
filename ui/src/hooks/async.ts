@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { isUndefined } from 'lodash';
 import { useEffect } from 'react';
 import { fromEvent, Subject, takeUntil } from 'rxjs';
@@ -39,7 +40,6 @@ class BaseAsyncCapture {
     this.tids.delete(tid);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fromEvent(...args: any) {
     return fromEvent(...(args as Parameters<typeof fromEvent>)).pipe(takeUntil(this.onDestroy$));
   }

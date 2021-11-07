@@ -214,7 +214,7 @@ export function DMenuSub(props: DMenuSubProps) {
   }, [__level, popup, children]);
   //#endregion
 
-  //#region transition
+  //#region Transition
   const transitionStateList = useMemo<DTransitionStateList>(() => {
     return {
       'enter-from': { transform: 'scale(0)', opacity: 0 },

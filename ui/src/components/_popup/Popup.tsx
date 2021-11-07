@@ -412,7 +412,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
   }, [updatePosition]);
   //#endregion
 
-  //#region transition
+  //#region Transition
   const transitionStateList = useMemo<DTransitionStateList>(() => {
     if (dCustomTransition) {
       return dCustomTransition;
