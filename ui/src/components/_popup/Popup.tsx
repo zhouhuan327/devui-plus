@@ -1,6 +1,6 @@
+import type { DElementSelector } from '../../hooks/element';
 import type { DTransitionStateList, DTransitionCallbackList } from '../../hooks/transition';
 import type { DPlacement } from '../../utils/position';
-import type { DElementSelector } from '../../utils/selector';
 
 import { isUndefined } from 'lodash';
 import React, { useCallback, useEffect, useMemo, useImperativeHandle } from 'react';
@@ -8,8 +8,8 @@ import ReactDOM from 'react-dom';
 import { Subject } from 'rxjs';
 import { useImmer } from 'use-immer';
 
-import { useDPrefixConfig, useCustomRef, useAsync, useThrottle, useTransition } from '../../hooks';
-import { getClassName, globalMaxIndexManager, globalScrollCapture, getPopupPlacementStyle, getElement } from '../../utils';
+import { useDPrefixConfig, useCustomRef, useAsync, useThrottle, useTransition, useElement } from '../../hooks';
+import { getClassName, globalMaxIndexManager, globalScrollCapture, getPopupPlacementStyle } from '../../utils';
 import { useLockOperation } from './utils';
 
 export interface DPopupProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -96,11 +96,28 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
 
   const [autoVisible, setAutoVisible] = useImmer(false);
 
-  const [containerEl, setContainerEl] = useImmer<HTMLElement | null>(null);
-
   const [autoPlacement, setPrePlacement] = useImmer<DPlacement>(dPlacement);
 
   const [zIndex, setZIndex] = useImmer(1000);
+  //#endregion
+
+  //#region Element
+  const targetEl = useElement(dTarget);
+  const handleContainer = useCallback(() => {
+    if (isUndefined(dContainer)) {
+      let el = document.getElementById('d-popup-root');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'd-popup-root';
+        document.body.appendChild(el);
+      }
+      return el;
+    } else if (dContainer === false) {
+      return targetEl.current?.parentElement ?? null;
+    }
+    return null;
+  }, [dContainer, targetEl]);
+  const containerEl = useElement(dContainer, handleContainer);
   //#endregion
 
   //#region Getters.
@@ -125,30 +142,12 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
    */
   const visible = useMemo(() => (isUndefined(dVisible) ? autoVisible : dVisible), [dVisible, autoVisible]);
 
-  const updateContainerEl = useCallback(() => {
-    if (isUndefined(dContainer)) {
-      let el = document.getElementById('d-popup-root');
-      if (!el) {
-        el = document.createElement('div');
-        el.id = 'd-popup-root';
-        document.body.appendChild(el);
-      }
-      setContainerEl(el);
-    } else if (dContainer === false) {
-      const targetEl = getElement(dTarget);
-      setContainerEl(targetEl?.parentElement ?? null);
-    } else {
-      setContainerEl(getElement(dContainer));
-    }
-  }, [dContainer, dTarget, setContainerEl]);
-
   const updatePosition = useCallback(() => {
     throttleByAnimationFrame(() => {
-      const targetEl = getElement(dTarget);
-      if (containerEl && popupEl && targetEl) {
+      if (popupEl && targetEl.current && containerEl.current) {
         let space: [number, number, number, number] = [0, 0, 0, 0];
         if (dAutoPlace && !isUndefined(dContainer)) {
-          const containerRect = containerEl.getBoundingClientRect();
+          const containerRect = containerEl.current.getBoundingClientRect();
           space = [
             containerRect.top,
             window.innerWidth - containerRect.left - containerRect.width,
@@ -158,7 +157,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
         }
 
         if (dCustomPosition) {
-          const { top, left } = dCustomPosition(popupEl, targetEl);
+          const { top, left } = dCustomPosition(popupEl, targetEl.current);
           setPopupPositionStyle({
             position: isUndefined(dContainer) ? 'fixed' : 'absolute',
             top,
@@ -167,7 +166,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
         } else {
           const { top, left, placement } = getPopupPlacementStyle(
             popupEl,
-            targetEl,
+            targetEl.current,
             dPlacement,
             dDistance,
             isUndefined(dContainer),
@@ -183,18 +182,18 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
       }
     });
   }, [
-    dContainer,
-    dTarget,
-    dPlacement,
     dAutoPlace,
-    dDistance,
+    dContainer,
     dCustomPosition,
+    dDistance,
+    dPlacement,
     throttleByAnimationFrame,
     popupEl,
-    containerEl,
     autoPlacement,
-    setPrePlacement,
+    containerEl,
+    targetEl,
     setPopupPositionStyle,
+    setPrePlacement,
   ]);
   //#endregion
 
@@ -235,16 +234,6 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
    * - Angular: ngDoCheck.
    * @see https://angular.io/api/core/DoCheck
    */
-  useEffect(() => {
-    updateContainerEl();
-  }, [updateContainerEl]);
-
-  useEffect(() => {
-    if (visible) {
-      updateContainerEl();
-    }
-  }, [visible, updateContainerEl]);
-
   useEffect(() => {
     if (dVisible) {
       if (isUndefined(dZIndex)) {
@@ -306,24 +295,23 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
-    const targetEl = getElement(dTarget);
-    if (targetEl) {
+    if (targetEl.current) {
       switch (dTrigger) {
         case 'hover':
-          asyncGroup.fromEvent([targetEl], 'mouseenter').subscribe(() => {
+          asyncGroup.fromEvent([targetEl.current], 'mouseenter').subscribe(() => {
             triggerObserver$.next([true, dMouseEnterDelay]);
           });
-          asyncGroup.fromEvent([targetEl], 'mouseleave').subscribe(() => {
+          asyncGroup.fromEvent([targetEl.current], 'mouseleave').subscribe(() => {
             triggerObserver$.next([false, dMouseLeaveDelay]);
           });
           break;
 
         case 'focus':
-          asyncGroup.fromEvent([targetEl], 'focus').subscribe(() => {
+          asyncGroup.fromEvent([targetEl.current], 'focus').subscribe(() => {
             lockOperation.lock();
             triggerObserver$.next([true]);
           });
-          asyncGroup.fromEvent([targetEl], 'blur').subscribe(() => {
+          asyncGroup.fromEvent([targetEl.current], 'blur').subscribe(() => {
             lockOperation.handleOperation(() => {
               triggerObserver$.next([false]);
             });
@@ -331,7 +319,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
           break;
 
         case 'click':
-          asyncGroup.fromEvent(targetEl, 'click').subscribe(() => {
+          asyncGroup.fromEvent(targetEl.current, 'click').subscribe(() => {
             if (!visible) {
               lockOperation.lock();
               triggerObserver$.next([true]);
@@ -351,7 +339,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [dTrigger, dMouseEnterDelay, dMouseLeaveDelay, dTarget, asyncCapture, triggerObserver$, lockOperation, visible]);
+  }, [dTrigger, dMouseEnterDelay, dMouseLeaveDelay, asyncCapture, triggerObserver$, lockOperation, targetEl, visible]);
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
@@ -389,14 +377,13 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
-    const targetEl = getElement(dTarget);
-    if (visible && targetEl) {
-      asyncGroup.onResize(targetEl, updatePosition);
+    if (visible && targetEl.current) {
+      asyncGroup.onResize(targetEl.current, updatePosition);
     }
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [dTarget, asyncCapture, visible, updatePosition]);
+  }, [asyncCapture, targetEl, visible, updatePosition]);
 
   useEffect(() => {
     if (visible) {
@@ -513,7 +500,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
   );
 
   return (
-    containerEl &&
+    containerEl.current &&
     ReactDOM.createPortal(
       <div
         ref={popupRef}
@@ -530,7 +517,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
         {dArrow && <div className={`${dPrefix}popup__arrow`}></div>}
         {children}
       </div>,
-      containerEl
+      containerEl.current
     )
   );
 });

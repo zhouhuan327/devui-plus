@@ -1,4 +1,4 @@
-import type { DElementSelector } from '../../utils/selector';
+import type { DElementSelector } from '../../hooks/element';
 import type { Updater } from 'use-immer';
 
 import { enableMapSet } from 'immer';
@@ -6,8 +6,8 @@ import { isUndefined } from 'lodash';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useImmer } from 'use-immer';
 
-import { useDPrefixConfig, useDComponentConfig, useCustomRef } from '../../hooks';
-import { getClassName, globalScrollCapture, getElement, CustomScroll } from '../../utils';
+import { useDPrefixConfig, useDComponentConfig, useCustomRef, useElement } from '../../hooks';
+import { getClassName, globalScrollCapture, CustomScroll } from '../../utils';
 
 enableMapSet();
 
@@ -50,6 +50,10 @@ export function DAnchor(props: DAnchorProps) {
    * @see https://angular.io/api/core/ViewChild
    */
   const [anchorEl, anchorRef] = useCustomRef<HTMLUListElement>();
+  //#endregion
+
+  //#region Element
+  const pageEl = useElement(dPage ?? null);
   //#endregion
 
   //#region States.
@@ -96,9 +100,8 @@ export function DAnchor(props: DAnchorProps) {
     if (anchorEl) {
       let pageTop = 0;
       if (!isUndefined(dPage)) {
-        const pageEl = getElement(dPage);
-        if (pageEl) {
-          pageTop = pageEl.getBoundingClientRect().top;
+        if (pageEl.current) {
+          pageTop = pageEl.current.getBoundingClientRect().top;
         } else {
           return;
         }
@@ -135,37 +138,36 @@ export function DAnchor(props: DAnchorProps) {
       });
       setActiveHref(activeHref);
     }
-  }, [dDistance, dPage, anchorEl, linkMap, setActiveHref, setDotStyle]);
+  }, [dDistance, dPage, pageEl, anchorEl, linkMap, setActiveHref, setDotStyle]);
 
   const onClick = useCallback(
     (href: string) => {
       let pageTop = 0;
-      let pageEl: HTMLElement = document.documentElement;
+      let _pageEl: HTMLElement = document.documentElement;
       if (!isUndefined(dPage)) {
-        const el = getElement(dPage);
-        if (el) {
-          pageTop = el.getBoundingClientRect().top;
-          pageEl = el;
+        if (pageEl.current) {
+          pageTop = pageEl.current.getBoundingClientRect().top;
+          _pageEl = pageEl.current;
         } else {
           return;
         }
       }
 
-      const scrollTop = pageEl.scrollTop;
+      const scrollTop = _pageEl.scrollTop;
       window.location.hash = href;
-      pageEl.scrollTop = scrollTop;
+      _pageEl.scrollTop = scrollTop;
 
       const el = document.getElementById(href.slice(1));
       if (el) {
         const top = el.getBoundingClientRect().top;
-        const scrollTop = top - pageTop + pageEl.scrollTop - dDistance;
-        customScroll.scrollTo(pageEl, {
+        const scrollTop = top - pageTop + _pageEl.scrollTop - dDistance;
+        customScroll.scrollTo(_pageEl, {
           top: scrollTop,
           behavior: dScrollBehavior,
         });
       }
     },
-    [dPage, dScrollBehavior, dDistance, customScroll]
+    [dPage, dScrollBehavior, dDistance, customScroll, pageEl]
   );
   //#endregion
 

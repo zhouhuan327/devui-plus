@@ -7,8 +7,8 @@ import { isUndefined } from 'lodash';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useImmer } from 'use-immer';
 
-import { useDPrefixConfig, useDComponentConfig, useCustomRef, useCustomContext, useCollapseTransition } from '../../hooks';
-import { getClassName, getFixedSideStyle, getElement } from '../../utils';
+import { useDPrefixConfig, useDComponentConfig, useCustomRef, useCustomContext, useCollapseTransition, useElement } from '../../hooks';
+import { getClassName, getFixedSideStyle } from '../../utils';
 import { DPopup } from '../_popup';
 import { DIcon } from '../icon';
 import { DMenuContext } from './Menu';
@@ -89,6 +89,10 @@ export function DMenuSub(props: DMenuSubProps) {
   const [popupIds, setPopupIds] = useImmer(new Set<string>());
 
   const [ids, setIds] = useImmer(new Set<string>());
+  //#endregion
+
+  //#region Element
+  const targetEl = useElement(popupRefContent?.target ?? null);
   //#endregion
 
   //#region Getters.
@@ -227,9 +231,13 @@ export function DMenuSub(props: DMenuSubProps) {
     return {
       beforeEnter: () => {
         const popupEl = popupRefContent?.el;
-        const targetEl = getElement(popupRefContent?.target ?? null);
-        if (popupEl && targetEl) {
-          transformOrigin = getFixedSideStyle(popupEl, targetEl, 'right', targetEl.dataset['popup'] === 'true' ? 18 : 10).transformOrigin;
+        if (popupEl && targetEl.current) {
+          transformOrigin = getFixedSideStyle(
+            popupEl,
+            targetEl.current,
+            'right',
+            targetEl.current.dataset['popup'] === 'true' ? 18 : 10
+          ).transformOrigin;
         }
       },
       enter: (el, rect, setStyle) => {
@@ -239,20 +247,19 @@ export function DMenuSub(props: DMenuSubProps) {
       },
       leave: (el, rect, setStyle) => {
         const popupEl = popupRefContent?.el;
-        const targetEl = getElement(popupRefContent?.target ?? null);
-        if (popupEl && targetEl) {
-          setStyle((draft) => {
+        setStyle((draft) => {
+          if (popupEl && targetEl.current) {
             draft.transformOrigin = getFixedSideStyle(
               popupEl,
-              targetEl,
+              targetEl.current,
               'right',
-              targetEl.dataset['popup'] === 'true' ? 18 : 10
+              targetEl.current.dataset['popup'] === 'true' ? 18 : 10
             ).transformOrigin;
-          });
-        }
+          }
+        });
       },
     };
-  }, [popupRefContent]);
+  }, [popupRefContent, targetEl]);
   const transitionStyle = useCollapseTransition({ dVisible: expand, dDirection: 'height', dDuring: 200, dTarget: menuEl });
   //#endregion
 

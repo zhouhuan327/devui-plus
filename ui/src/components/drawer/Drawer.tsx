@@ -1,5 +1,5 @@
+import type { DElementSelector } from '../../hooks/element';
 import type { DTransitionStateList, DTransitionCallbackList } from '../../hooks/transition';
-import type { DElementSelector } from '../../utils/selector';
 
 import { isUndefined, isString } from 'lodash';
 import React, { useEffect, useCallback, useMemo, useImperativeHandle } from 'react';
@@ -15,8 +15,9 @@ import {
   useThrottle,
   useAsync,
   useTransition,
+  useElement,
 } from '../../hooks';
-import { getClassName, globalMaxIndexManager, globalEscStack, globalScrollCapture, getFillingStyle, toPx, getElement } from '../../utils';
+import { getClassName, globalMaxIndexManager, globalEscStack, globalScrollCapture, getFillingStyle, toPx } from '../../utils';
 import { DMask } from '../_mask';
 
 export type DDrawerContextData = { id: number; onClose?: () => void } | null;
@@ -83,6 +84,24 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   const [contentEl, contentRef] = useCustomRef<HTMLDivElement>();
   //#endregion
 
+  //#region Element
+  const handleContainer = useCallback(() => {
+    if (isUndefined(dContainer)) {
+      let el = document.getElementById('d-drawer-root');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'd-drawer-root';
+        document.body.appendChild(el);
+      }
+      return el;
+    } else if (dContainer === false) {
+      return drawerEl?.parentElement ?? null;
+    }
+    return null;
+  }, [dContainer, drawerEl]);
+  const containerEl = useElement(dContainer, handleContainer);
+  //#endregion
+
   //#region States.
   /*
    * @see https://reactjs.org/docs/state-and-lifecycle.html
@@ -108,8 +127,6 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   });
 
   const [display, setDisplay] = useImmer<'none' | undefined>('none');
-
-  const [containerEl, setContainerEl] = useImmer<HTMLElement | null>(null);
 
   const [zIndex, setZIndex] = useImmer(1000);
   //#endregion
@@ -143,22 +160,6 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
     }
   }, [dMaskClosable, onClose]);
 
-  const updateContainerEl = useCallback(() => {
-    if (isUndefined(dContainer)) {
-      let el = document.getElementById('d-drawer-root');
-      if (!el) {
-        el = document.createElement('div');
-        el.id = 'd-drawer-root';
-        document.body.appendChild(el);
-      }
-      setContainerEl(el);
-    } else if (dContainer === false) {
-      setContainerEl(drawerEl?.parentElement ?? null);
-    } else {
-      setContainerEl(getElement(dContainer));
-    }
-  }, [dContainer, drawerEl, setContainerEl]);
-
   const updatePosition = useCallback(() => {
     throttleByAnimationFrame(() => {
       if (drawerEl) {
@@ -170,10 +171,10 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
             bottom: 0,
             left: 0,
           });
-        } else if (containerEl) {
+        } else if (containerEl.current) {
           setDrawerPositionStyle({
             position: 'absolute',
-            ...getFillingStyle(drawerEl, containerEl, false),
+            ...getFillingStyle(drawerEl, containerEl.current, false),
           });
         }
       }
@@ -222,16 +223,6 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   }, [dVisible, setDisplay]);
 
   useEffect(() => {
-    updateContainerEl();
-  }, [updateContainerEl]);
-
-  useEffect(() => {
-    if (dVisible) {
-      updateContainerEl();
-    }
-  }, [dVisible, updateContainerEl]);
-
-  useEffect(() => {
     if (dVisible) {
       if (isUndefined(dZIndex)) {
         if (isUndefined(dContainer)) {
@@ -268,8 +259,8 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
-    if (dVisible && containerEl) {
-      asyncGroup.onResize(containerEl, updatePosition);
+    if (dVisible && containerEl.current) {
+      asyncGroup.onResize(containerEl.current, updatePosition);
     }
     return () => {
       asyncCapture.deleteGroup(asyncId);
@@ -401,5 +392,5 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
     </DDrawerContext.Provider>
   );
 
-  return dContainer === false ? drawerNode : containerEl && ReactDOM.createPortal(drawerNode, containerEl);
+  return dContainer === false ? drawerNode : containerEl.current && ReactDOM.createPortal(drawerNode, containerEl.current);
 });

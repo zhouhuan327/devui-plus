@@ -1,11 +1,11 @@
-import type { DElementSelector } from '../../utils/selector';
+import type { DElementSelector } from '../../hooks/element';
 
 import { isString, isUndefined } from 'lodash';
 import React, { useCallback, useEffect, useImperativeHandle, useMemo } from 'react';
 import { useImmer } from 'use-immer';
 
-import { useDPrefixConfig, useDComponentConfig, useCustomRef, useAsync, useThrottle } from '../../hooks';
-import { getClassName, toPx, globalScrollCapture, getElement } from '../../utils';
+import { useDPrefixConfig, useDComponentConfig, useCustomRef, useAsync, useThrottle, useElement } from '../../hooks';
+import { getClassName, toPx, globalScrollCapture } from '../../utils';
 
 export interface DAffixProps extends React.HTMLAttributes<HTMLDivElement> {
   dTarget?: DElementSelector;
@@ -50,6 +50,10 @@ export const DAffix = React.forwardRef<DAffixRef, DAffixProps>((props, ref) => {
   const [referenceEl, referenceRef] = useCustomRef<HTMLDivElement>();
   //#endregion
 
+  //#region Element
+  const targetEl = useElement(dTarget ?? null);
+  //#endregion
+
   //#region States.
   /*
    * @see https://reactjs.org/docs/state-and-lifecycle.html
@@ -92,17 +96,13 @@ export const DAffix = React.forwardRef<DAffixRef, DAffixProps>((props, ref) => {
 
   const updatePosition = useCallback(() => {
     throttleByAnimationFrame(() => {
-      let targetEl: HTMLElement | null = null;
-      if (!isUndefined(dTarget)) {
-        targetEl = getElement(dTarget);
-      }
-      if ((isUndefined(dTarget) || targetEl) && affixEl && referenceEl) {
+      if ((isUndefined(dTarget) || targetEl.current) && affixEl && referenceEl) {
         let targetRect = {
           top: 0,
           bottom: window.innerHeight,
         };
-        if (targetEl) {
-          targetRect = targetEl.getBoundingClientRect();
+        if (targetEl.current) {
+          targetRect = targetEl.current.getBoundingClientRect();
         }
 
         const offsetEl = fixed === true ? referenceEl : affixEl;
@@ -151,6 +151,7 @@ export const DAffix = React.forwardRef<DAffixRef, DAffixProps>((props, ref) => {
     fixed,
     affixEl,
     referenceEl,
+    targetEl,
     onFixedChange,
     setFixed,
     setFixedStyle,

@@ -71,7 +71,7 @@ export function useTransition(props: DTransitionProps) {
           setStyle({});
         }
         dTarget.dataset['dVisible'] = String(dVisible);
-      } else if (!(dVisible === false && dTarget.dataset['dVisible'] === 'false')) {
+      } else if (dTarget.dataset['dVisible'] !== String(dVisible)) {
         dTarget.dataset['dVisible'] = String(dVisible);
 
         if (dVisible) {
