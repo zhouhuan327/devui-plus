@@ -216,7 +216,7 @@ var GenerateSite = /** @class */ (function () {
                 routeTmp_1 = routeTmp_1.replace(/__import__/g, importStr);
                 ['en-US', 'zh-Hant'].forEach(function (lang) {
                     var _a, _b;
-                    _this.resources[lang].menu[meta.title['en-US']] = meta.title[lang];
+                    _this.resources[lang].translation.menu[meta.title['en-US']] = meta.title[lang];
                     var demosStr = '';
                     var linksStr = '';
                     demoList_1.forEach(function (demo) {
@@ -326,7 +326,7 @@ var GenerateSite = /** @class */ (function () {
                     children: [],
                 });
                 Object.keys(item).forEach(function (lang) {
-                    _this.resources[lang]['menu-group'][item['en-US']] = item[lang];
+                    _this.resources[lang].translation['menu-group'][item['en-US']] = item[lang];
                 });
             });
         }

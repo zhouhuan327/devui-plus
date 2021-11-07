@@ -8,7 +8,7 @@ import menu from '../../configs/menu.json';
 import './Sidebar.scss';
 
 export function AppSidebar() {
-  const { t, i18n } = useTranslation(['menu', 'menu-group']);
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   const [activeId, setActiveId] = useImmer<string | undefined>(undefined);
@@ -37,11 +37,11 @@ export function AppSidebar() {
     <nav className="app-sidebar">
       <DMenu dActive={activeId} onActiveChange={handleActiveChange}>
         {menu.map((group) => (
-          <DMenuGroup key={group.title} dTitle={t(`menu-group:${group.title}`)}>
+          <DMenuGroup key={group.title} dTitle={t(`menu-group.${group.title}`)}>
             {group.children.map((child) => (
               <DMenuItem key={child.title} onClick={() => navigate(child.to, { replace: true })}>
                 {child.title}
-                {i18n.language !== 'en-US' && <span className="app-sidebar__subtitle">{t(`menu:${child.title}`)}</span>}
+                {i18n.language !== 'en-US' && <span className="app-sidebar__subtitle">{t(`menu.${child.title}`)}</span>}
               </DMenuItem>
             ))}
           </DMenuGroup>

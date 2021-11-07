@@ -64,14 +64,16 @@ class GenerateSite {
 
   private resources!: {
     'en-US': {
-      translation: { [index: string]: string };
-      'menu-group': { [index: string]: string };
-      menu: { [index: string]: string };
+      translation: {
+        'menu-group': { [index: string]: string };
+        menu: { [index: string]: string };
+      } & { [index: string]: string };
     };
     'zh-Hant': {
-      translation: { [index: string]: string };
-      'menu-group': { [index: string]: string };
-      menu: { [index: string]: string };
+      translation: {
+        'menu-group': { [index: string]: string };
+        menu: { [index: string]: string };
+      } & { [index: string]: string };
     };
   };
   private menuGroups!: Array<{ 'en-US': string; 'zh-Hant': string }>;
@@ -231,7 +233,7 @@ class GenerateSite {
       routeTmp = routeTmp.replace(/__Route__/g, meta.title['en-US']);
       routeTmp = routeTmp.replace(/__import__/g, importStr);
       (['en-US', 'zh-Hant'] as const).forEach((lang) => {
-        this.resources[lang].menu[meta.title['en-US']] = meta.title[lang];
+        this.resources[lang].translation.menu[meta.title['en-US']] = meta.title[lang];
 
         let demosStr = '';
         let linksStr = '';
@@ -360,7 +362,7 @@ class GenerateSite {
       });
 
       Object.keys(item).forEach((lang) => {
-        this.resources[lang]['menu-group'][item['en-US']] = item[lang];
+        this.resources[lang].translation['menu-group'][item['en-US']] = item[lang];
       });
     });
   }

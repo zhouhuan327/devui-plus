@@ -10,10 +10,10 @@
       "Show code": "Show code",
       "Copy code": "Copy code",
       "Copied!": "Copied!",
-      "Edit this demo on GitHub": "Edit this demo on GitHub"
-    },
-    "menu-group": {},
-    "menu": {}
+      "Edit this demo on GitHub": "Edit this demo on GitHub",
+      "menu-group": {},
+      "menu": {}
+    }
   },
   "zh-Hant": {
     "translation": {
@@ -26,9 +26,9 @@
       "Show code": "显示代码",
       "Copy code": "复制代码",
       "Copied!": "复制成功！",
-      "Edit this demo on GitHub": "在 GitHub 上编辑此示例"
-    },
-    "menu-group": {},
-    "menu": {}
+      "Edit this demo on GitHub": "在 GitHub 上编辑此示例",
+      "menu-group": {},
+      "menu": {}
+    }
   }
 }
