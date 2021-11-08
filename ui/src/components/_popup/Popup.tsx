@@ -1,5 +1,5 @@
 import type { DElementSelector } from '../../hooks/element';
-import type { DTransitionStateList, DTransitionCallbackList } from '../../hooks/transition';
+import type { DTransitionStateList } from '../../hooks/transition';
 import type { DPlacement } from '../../utils/position';
 
 import { isUndefined } from 'lodash';
@@ -8,7 +8,7 @@ import ReactDOM from 'react-dom';
 import { Subject } from 'rxjs';
 import { useImmer } from 'use-immer';
 
-import { useDPrefixConfig, useCustomRef, useAsync, useThrottle, useTransition, useElement } from '../../hooks';
+import { useDPrefixConfig, useCustomRef, useAsync, useTransition, useElement } from '../../hooks';
 import { getClassName, globalMaxIndexManager, globalScrollCapture, getPopupPlacementStyle } from '../../utils';
 import { useLockOperation } from './utils';
 
@@ -24,9 +24,7 @@ export interface DPopupProps extends React.HTMLAttributes<HTMLDivElement> {
   dZIndex?: number;
   dMouseEnterDelay?: number;
   dMouseLeaveDelay?: number;
-  dCustomTransition?: DTransitionStateList;
-  dCustomTransitionCallback?: DTransitionCallbackList;
-  dCustomPosition?: (popupEl: HTMLDivElement, targetEl: HTMLElement) => { top: number; left: number };
+  dCustomPopup?: (popupEl: HTMLDivElement, targetEl: HTMLElement) => { top: number; left: number; stateList: DTransitionStateList };
   onTrigger?: (visible: boolean) => void;
   afterVisibleChange?: (visible: boolean) => void;
 }
@@ -50,9 +48,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
     dZIndex,
     dMouseEnterDelay = 150,
     dMouseLeaveDelay = 200,
-    dCustomTransition,
-    dCustomTransitionCallback,
-    dCustomPosition,
+    dCustomPopup,
     onTrigger,
     afterVisibleChange,
     className,
@@ -64,7 +60,6 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
   const dPrefix = useDPrefixConfig();
   const lockOperation = useLockOperation();
   const asyncCapture = useAsync();
-  const { throttleByAnimationFrame } = useThrottle();
 
   //#region Refs.
   /*
@@ -96,7 +91,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
 
   const [autoVisible, setAutoVisible] = useImmer(false);
 
-  const [autoPlacement, setPrePlacement] = useImmer<DPlacement>(dPlacement);
+  const [autoPlacement, setAutoPlacement] = useImmer<DPlacement>(dPlacement);
 
   const [zIndex, setZIndex] = useImmer(1000);
   //#endregion
@@ -142,59 +137,149 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
    */
   const visible = useMemo(() => (isUndefined(dVisible) ? autoVisible : dVisible), [dVisible, autoVisible]);
 
+  const placement = useMemo(() => (dAutoPlace ? autoPlacement : dPlacement), [dAutoPlace, autoPlacement, dPlacement]);
+
   const updatePosition = useCallback(() => {
-    throttleByAnimationFrame(() => {
-      if (popupEl && targetEl.current && containerEl.current) {
-        let space: [number, number, number, number] = [0, 0, 0, 0];
-        if (dAutoPlace && !isUndefined(dContainer)) {
-          const containerRect = containerEl.current.getBoundingClientRect();
-          space = [
-            containerRect.top,
-            window.innerWidth - containerRect.left - containerRect.width,
-            window.innerHeight - containerRect.top - containerRect.height,
-            containerRect.left,
-          ];
+    if (popupEl && targetEl.current && containerEl.current) {
+      const fixed = isUndefined(dContainer);
+
+      if (isUndefined(dCustomPopup)) {
+        let currentPlacement = dAutoPlace ? dPlacement : autoPlacement;
+
+        if (dAutoPlace) {
+          let space: [number, number, number, number] = [0, 0, 0, 0];
+          if (!fixed) {
+            const containerRect = containerEl.current.getBoundingClientRect();
+            space = [
+              containerRect.top,
+              window.innerWidth - containerRect.left - containerRect.width,
+              window.innerHeight - containerRect.top - containerRect.height,
+              containerRect.left,
+            ];
+          }
+          const position = getPopupPlacementStyle(popupEl, targetEl.current, dPlacement, dDistance, fixed, space);
+          if (position) {
+            currentPlacement = position.placement;
+            setAutoPlacement(position.placement);
+            setPopupPositionStyle({
+              position: fixed ? 'fixed' : 'absolute',
+              top: position.top,
+              left: position.left,
+            });
+          } else {
+            const position = getPopupPlacementStyle(popupEl, targetEl.current, autoPlacement, dDistance, fixed);
+            setPopupPositionStyle({
+              position: fixed ? 'fixed' : 'absolute',
+              top: position.top,
+              left: position.left,
+            });
+          }
+        } else {
+          const position = getPopupPlacementStyle(popupEl, targetEl.current, dPlacement, dDistance, fixed);
+          setPopupPositionStyle({
+            position: fixed ? 'fixed' : 'absolute',
+            top: position.top,
+            left: position.left,
+          });
         }
 
-        if (dCustomPosition) {
-          const { top, left } = dCustomPosition(popupEl, targetEl.current);
-          setPopupPositionStyle({
-            position: isUndefined(dContainer) ? 'fixed' : 'absolute',
-            top,
-            left,
-          });
-        } else {
-          const { top, left, placement } = getPopupPlacementStyle(
-            popupEl,
-            targetEl.current,
-            dPlacement,
-            dDistance,
-            isUndefined(dContainer),
-            dAutoPlace ? { space, default: autoPlacement } : undefined
-          );
-          setPrePlacement(placement);
-          setPopupPositionStyle({
-            position: isUndefined(dContainer) ? 'fixed' : 'absolute',
-            top,
-            left,
-          });
+        let transformOrigin = 'center bottom';
+        switch (currentPlacement) {
+          case 'top':
+            transformOrigin = 'center bottom';
+            break;
+
+          case 'top-left':
+            transformOrigin = '20px bottom';
+            break;
+
+          case 'top-right':
+            transformOrigin = 'calc(100% - 20px) bottom';
+            break;
+
+          case 'right':
+            transformOrigin = 'left center';
+            break;
+
+          case 'right-top':
+            transformOrigin = 'left 12px';
+            break;
+
+          case 'right-bottom':
+            transformOrigin = 'left calc(100% - 12px)';
+            break;
+
+          case 'bottom':
+            transformOrigin = 'center top';
+            break;
+
+          case 'bottom-left':
+            transformOrigin = '20px top';
+            break;
+
+          case 'bottom-right':
+            transformOrigin = 'calc(100% - 20px) top';
+            break;
+
+          case 'left':
+            transformOrigin = 'right center';
+            break;
+
+          case 'left-top':
+            transformOrigin = 'right 12px';
+            break;
+
+          case 'left-bottom':
+            transformOrigin = 'right calc(100% - 12px)';
+            break;
+
+          default:
+            break;
         }
+        return {
+          'enter-from': { transform: 'scale(0)', opacity: '0' },
+          'enter-to': { transition: 'transform 0.1s ease-out, opacity 0.1s ease-out', transformOrigin },
+          'leave-to': { transform: 'scale(0)', opacity: '0', transition: 'transform 0.1s ease-in, opacity 0.1s ease-in', transformOrigin },
+        };
+      } else {
+        const { top, left, stateList } = dCustomPopup(popupEl, targetEl.current);
+        setPopupPositionStyle({
+          position: fixed ? 'fixed' : 'absolute',
+          top,
+          left,
+        });
+        return stateList;
       }
-    });
+    }
   }, [
     dAutoPlace,
     dContainer,
-    dCustomPosition,
+    dCustomPopup,
     dDistance,
     dPlacement,
-    throttleByAnimationFrame,
     popupEl,
     autoPlacement,
     containerEl,
     targetEl,
     setPopupPositionStyle,
-    setPrePlacement,
+    setAutoPlacement,
   ]);
+  //#endregion
+
+  //#region Transition
+  const transitionThrottle = useTransition({
+    dTarget: popupEl,
+    dVisible: visible,
+    dStateList: updatePosition,
+    dCallbackList: {
+      afterEnter: () => {
+        afterVisibleChange?.(true);
+      },
+      afterLeave: () => {
+        afterVisibleChange?.(false);
+      },
+    },
+  });
   //#endregion
 
   //#region Mounted & Unmount.
@@ -368,125 +453,35 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
     if (visible && popupEl) {
-      asyncGroup.onResize(popupEl, updatePosition);
+      asyncGroup.onResize(popupEl, () => transitionThrottle(updatePosition));
     }
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [asyncCapture, visible, popupEl, updatePosition]);
+  }, [asyncCapture, transitionThrottle, visible, popupEl, updatePosition]);
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
     if (visible && targetEl.current) {
-      asyncGroup.onResize(targetEl.current, updatePosition);
+      asyncGroup.onResize(targetEl.current, () => transitionThrottle(updatePosition));
     }
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [asyncCapture, targetEl, visible, updatePosition]);
+  }, [asyncCapture, transitionThrottle, targetEl, visible, updatePosition]);
 
   useEffect(() => {
     if (visible) {
-      const tid = globalScrollCapture.addTask(() => updatePosition());
+      const tid = globalScrollCapture.addTask(() => transitionThrottle(updatePosition));
       return () => {
         globalScrollCapture.deleteTask(tid);
       };
     }
-  }, [visible, updatePosition]);
+  }, [visible, transitionThrottle, updatePosition]);
 
   useEffect(() => {
-    updatePosition();
-  }, [updatePosition]);
-  //#endregion
-
-  //#region Transition
-  const transitionStateList = useMemo<DTransitionStateList>(() => {
-    if (dCustomTransition) {
-      return dCustomTransition;
-    } else {
-      let transformOrigin = 'center bottom';
-      switch (autoPlacement) {
-        case 'top':
-          transformOrigin = 'center bottom';
-          break;
-
-        case 'top-left':
-          transformOrigin = '20px bottom';
-          break;
-
-        case 'top-right':
-          transformOrigin = 'calc(100% - 20px) bottom';
-          break;
-
-        case 'right':
-          transformOrigin = 'left center';
-          break;
-
-        case 'right-top':
-          transformOrigin = 'left 12px';
-          break;
-
-        case 'right-bottom':
-          transformOrigin = 'left calc(100% - 12px)';
-          break;
-
-        case 'bottom':
-          transformOrigin = 'center top';
-          break;
-
-        case 'bottom-left':
-          transformOrigin = '20px top';
-          break;
-
-        case 'bottom-right':
-          transformOrigin = 'calc(100% - 20px) top';
-          break;
-
-        case 'left':
-          transformOrigin = 'right center';
-          break;
-
-        case 'left-top':
-          transformOrigin = 'right 12px';
-          break;
-
-        case 'left-bottom':
-          transformOrigin = 'right calc(100% - 12px)';
-          break;
-
-        default:
-          break;
-      }
-      return {
-        'enter-from': { transform: 'scale(0)', opacity: 0 },
-        'enter-to': { transition: 'transform 0.1s ease-out, opacity 0.1s ease-out', transformOrigin },
-        'leave-to': { transform: 'scale(0)', opacity: 0, transition: 'transform 0.1s ease-in, opacity 0.1s ease-in', transformOrigin },
-      };
-    }
-  }, [dCustomTransition, autoPlacement]);
-  const transitionCallbackList = useMemo<DTransitionCallbackList>(() => {
-    return {
-      ...dCustomTransitionCallback,
-      beforeEnter: (...args) => {
-        dCustomTransitionCallback?.beforeEnter?.(...args);
-        updatePosition();
-      },
-      afterEnter: (...args) => {
-        dCustomTransitionCallback?.afterEnter?.(...args);
-        afterVisibleChange?.(true);
-      },
-      afterLeave: (...args) => {
-        dCustomTransitionCallback?.afterLeave?.(...args);
-        afterVisibleChange?.(false);
-      },
-    };
-  }, [dCustomTransitionCallback, afterVisibleChange, updatePosition]);
-  const transitionStyle = useTransition({
-    dVisible: visible,
-    dStateList: transitionStateList,
-    dCallbackList: transitionCallbackList,
-    dTarget: popupEl,
-  });
+    transitionThrottle(updatePosition);
+  }, [transitionThrottle, updatePosition]);
   //#endregion
 
   useImperativeHandle(
@@ -505,12 +500,11 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
       <div
         ref={popupRef}
         {...restProps}
-        className={getClassName(className, `${dPrefix}popup`, `${dPrefix}popup--` + autoPlacement)}
+        className={getClassName(className, `${dPrefix}popup`, `${dPrefix}popup--` + placement)}
         style={{
           ...style,
           zIndex,
           ...popupPositionStyle,
-          ...transitionStyle,
         }}
         tabIndex={-1}
       >

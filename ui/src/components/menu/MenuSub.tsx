@@ -1,5 +1,3 @@
-import type { DTransitionStateList, DTransitionCallbackList } from '../../hooks/transition';
-import type { DPopupRef } from '../_popup';
 import type { Updater } from 'use-immer';
 
 import { enableMapSet } from 'immer';
@@ -7,7 +5,7 @@ import { isUndefined } from 'lodash';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useImmer } from 'use-immer';
 
-import { useDPrefixConfig, useDComponentConfig, useCustomRef, useCustomContext, useCollapseTransition, useElement } from '../../hooks';
+import { useDPrefixConfig, useDComponentConfig, useCustomRef, useCustomContext, useCollapseTransition } from '../../hooks';
 import { getClassName, getFixedSideStyle } from '../../utils';
 import { DPopup } from '../_popup';
 import { DIcon } from '../icon';
@@ -68,7 +66,6 @@ export function DMenuSub(props: DMenuSubProps) {
    */
   const [liEl, liRef] = useCustomRef<HTMLLIElement>();
   const [menuEl, menuRef] = useCustomRef<HTMLUListElement>();
-  const [popupRefContent, popupRef] = useCustomRef<DPopupRef>();
   //#endregion
 
   //#region States.
@@ -89,10 +86,6 @@ export function DMenuSub(props: DMenuSubProps) {
   const [popupIds, setPopupIds] = useImmer(new Set<string>());
 
   const [ids, setIds] = useImmer(new Set<string>());
-  //#endregion
-
-  //#region Element
-  const targetEl = useElement(popupRefContent?.target ?? null);
   //#endregion
 
   //#region Getters.
@@ -118,8 +111,17 @@ export function DMenuSub(props: DMenuSubProps) {
   const popup = useMemo(() => dPopup ?? _dPopup ?? false, [_dPopup, dPopup]);
   const popupTrigger = useMemo(() => dPopupTrigger ?? _dPopupTrigger ?? 'hover', [_dPopupTrigger, dPopupTrigger]);
 
-  const customPosition = useCallback((popupEl, targetEl) => {
-    return getFixedSideStyle(popupEl, targetEl, 'right', targetEl.dataset['popup'] === 'true' ? 18 : 10);
+  const customTransition = useCallback((popupEl, targetEl) => {
+    const { top, left, transformOrigin } = getFixedSideStyle(popupEl, targetEl, 'right', targetEl.dataset['popup'] === 'true' ? 18 : 10);
+    return {
+      top,
+      left,
+      stateList: {
+        'enter-from': { transform: 'scale(0)', opacity: '0' },
+        'enter-to': { transition: 'transform 133ms ease-out, opacity 133ms ease-out', transformOrigin },
+        'leave-to': { transform: 'scale(0)', opacity: '0', transition: 'transform 133ms ease-in, opacity 133ms ease-in', transformOrigin },
+      },
+    };
   }, []);
 
   const handleClick = useCallback(
@@ -148,7 +150,10 @@ export function DMenuSub(props: DMenuSubProps) {
     },
     [__id, dDisabled, setVisible, setPopupIds, setExpand]
   );
+  //#endregion
 
+  //#region Transition
+  useCollapseTransition({ dTarget: menuEl, dVisible: expand, dDirection: 'height', dDuring: 200, dDisabled: popup });
   //#endregion
 
   //#region DidUpdate.
@@ -218,58 +223,12 @@ export function DMenuSub(props: DMenuSubProps) {
   }, [__level, popup, children]);
   //#endregion
 
-  //#region Transition
-  const transitionStateList = useMemo<DTransitionStateList>(() => {
-    return {
-      'enter-from': { transform: 'scale(0)', opacity: 0 },
-      'enter-to': { transition: 'transform 133ms ease-out, opacity 133ms ease-out' },
-      'leave-to': { transform: 'scale(0)', opacity: 0, transition: 'transform 133ms ease-in, opacity 133ms ease-in' },
-    };
-  }, []);
-  const transitionCallbackList = useMemo<DTransitionCallbackList>(() => {
-    let transformOrigin: string;
-    return {
-      beforeEnter: () => {
-        const popupEl = popupRefContent?.el;
-        if (popupEl && targetEl.current) {
-          transformOrigin = getFixedSideStyle(
-            popupEl,
-            targetEl.current,
-            'right',
-            targetEl.current.dataset['popup'] === 'true' ? 18 : 10
-          ).transformOrigin;
-        }
-      },
-      enter: (el, rect, setStyle) => {
-        setStyle((draft) => {
-          draft.transformOrigin = transformOrigin;
-        });
-      },
-      leave: (el, rect, setStyle) => {
-        const popupEl = popupRefContent?.el;
-        setStyle((draft) => {
-          if (popupEl && targetEl.current) {
-            draft.transformOrigin = getFixedSideStyle(
-              popupEl,
-              targetEl.current,
-              'right',
-              targetEl.current.dataset['popup'] === 'true' ? 18 : 10
-            ).transformOrigin;
-          }
-        });
-      },
-    };
-  }, [popupRefContent, targetEl]);
-  const transitionStyle = useCollapseTransition({ dVisible: expand, dDirection: 'height', dDuring: 200, dTarget: menuEl });
-  //#endregion
-
   const contextValue = useMemo(() => ({ setPopupIds, setIds }), [setPopupIds, setIds]);
 
   const menu = (
     <ul
       ref={menuRef}
       className={`${dPrefix}menu-list`}
-      style={popup ? undefined : transitionStyle}
       role="menu"
       tabIndex={-1}
       aria-labelledby={`menu-sub-${__id}`}
@@ -310,15 +269,12 @@ export function DMenuSub(props: DMenuSubProps) {
       {!dDisabled &&
         (popup ? (
           <DPopup
-            ref={popupRef}
             className={`${dPrefix}menu-sub__popup`}
             dVisible={expand}
             dTrigger={popupTrigger}
             dTarget={liEl}
             dArrow={false}
-            dCustomPosition={customPosition}
-            dCustomTransition={transitionStateList}
-            dCustomTransitionCallback={transitionCallbackList}
+            dCustomPopup={customTransition}
             onTrigger={handleTrigger}
           >
             {menu}

@@ -92,7 +92,7 @@ export const DButton = React.forwardRef<HTMLButtonElement, DButtonProps>((props,
   //#endregion
 
   //#region Transition
-  const transitionStyle = useCollapseTransition({ dVisible: dLoading, dDirection: 'width', dTarget: loadingEl });
+  useCollapseTransition({ dTarget: loadingEl, dVisible: dLoading, dDirection: 'width' });
   //#endregion
 
   const loadingIcon = (
@@ -127,7 +127,7 @@ export const DButton = React.forwardRef<HTMLButtonElement, DButtonProps>((props,
       {dIcon ? (
         <span className={getClassName(`${dPrefix}button__icon`, { 'is-right': !dIconLeft })}>{dLoading ? loadingIcon : dIcon}</span>
       ) : (
-        <span ref={loadingRef} className={getClassName(`${dPrefix}button__icon`, { 'is-right': !dIconLeft })} style={transitionStyle}>
+        <span ref={loadingRef} className={getClassName(`${dPrefix}button__icon`, { 'is-right': !dIconLeft })}>
           {loadingIcon}
         </span>
       )}

@@ -1,5 +1,4 @@
 import type { DElementSelector } from '../../hooks/element';
-import type { DTransitionStateList, DTransitionCallbackList } from '../../hooks/transition';
 
 import { isUndefined, isString } from 'lodash';
 import React, { useEffect, useCallback, useMemo, useImperativeHandle } from 'react';
@@ -12,7 +11,6 @@ import {
   useLockScroll,
   useCustomRef,
   useId,
-  useThrottle,
   useAsync,
   useTransition,
   useElement,
@@ -68,7 +66,6 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   } = useDComponentConfig('drawer', props);
 
   const dPrefix = useDPrefixConfig();
-  const { throttleByAnimationFrame } = useThrottle();
   const asyncCapture = useAsync();
 
   //#region Refs.
@@ -161,25 +158,23 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   }, [dMaskClosable, onClose]);
 
   const updatePosition = useCallback(() => {
-    throttleByAnimationFrame(() => {
-      if (drawerEl) {
-        if (isUndefined(dContainer)) {
-          setDrawerPositionStyle({
-            position: 'fixed',
-            top: 0,
-            right: 0,
-            bottom: 0,
-            left: 0,
-          });
-        } else if (containerEl.current) {
-          setDrawerPositionStyle({
-            position: 'absolute',
-            ...getFillingStyle(drawerEl, containerEl.current, false),
-          });
-        }
+    if (drawerEl) {
+      if (isUndefined(dContainer)) {
+        setDrawerPositionStyle({
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+        });
+      } else if (containerEl.current) {
+        setDrawerPositionStyle({
+          position: 'absolute',
+          ...getFillingStyle(drawerEl, containerEl.current, false),
+        });
       }
-    });
-  }, [dContainer, drawerEl, throttleByAnimationFrame, containerEl, setDrawerPositionStyle]);
+    }
+  }, [dContainer, drawerEl, containerEl, setDrawerPositionStyle]);
   //#endregion
 
   //#region React.cloneElement.
@@ -204,6 +199,46 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
     }
     return null;
   }, [dChildDrawer, setDistance]);
+  //#endregion
+
+  //#region Transition
+  const transitionThrottle = useTransition({
+    dTarget: contentEl,
+    dVisible: dVisible,
+    dStateList: () => {
+      const transform =
+        dPlacement === 'top'
+          ? 'translate(0, -100%)'
+          : dPlacement === 'right'
+          ? 'translate(100%, 0)'
+          : dPlacement === 'bottom'
+          ? 'translate(0, 100%)'
+          : 'translate(-100%, 0)';
+      return {
+        'enter-from': { transform },
+        'enter-to': { transition: 'transform 0.2s ease-out' },
+        'leave-to': { transform, transition: 'transform 0.2s ease-in' },
+      };
+    },
+    dCallbackList: () => {
+      let cb: () => void;
+      return {
+        afterEnter: (el) => {
+          afterVisibleChange?.(true);
+          const activeEl = document.activeElement as HTMLElement | null;
+          cb = () => activeEl?.focus({ preventScroll: true });
+          el.focus({ preventScroll: true });
+        },
+        beforeLeave: () => {
+          cb?.();
+        },
+        afterLeave: () => {
+          afterVisibleChange?.(false);
+          setDisplay('none');
+        },
+      };
+    },
+  });
   //#endregion
 
   //#region DidUpdate.
@@ -260,21 +295,21 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
     if (dVisible && containerEl.current) {
-      asyncGroup.onResize(containerEl.current, updatePosition);
+      asyncGroup.onResize(containerEl.current, () => transitionThrottle(updatePosition));
     }
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [dVisible, asyncCapture, containerEl, updatePosition]);
+  }, [dVisible, asyncCapture, transitionThrottle, containerEl, updatePosition]);
 
   useEffect(() => {
     if (dVisible) {
-      const tid = globalScrollCapture.addTask(() => updatePosition());
+      const tid = globalScrollCapture.addTask(() => transitionThrottle(updatePosition));
       return () => {
         globalScrollCapture.deleteTask(tid);
       };
     }
-  }, [dVisible, updatePosition]);
+  }, [dVisible, transitionThrottle, updatePosition]);
 
   useEffect(() => {
     if (dVisible) {
@@ -286,52 +321,10 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   }, [dVisible, id, onClose]);
 
   useEffect(() => {
-    updatePosition();
-  }, [updatePosition]);
+    transitionThrottle(updatePosition);
+  }, [transitionThrottle, updatePosition]);
 
   useLockScroll(dVisible && isUndefined(dContainer));
-  //#endregion
-
-  //#region Transition
-  const transitionStateList = useMemo<DTransitionStateList>(() => {
-    const transform =
-      dPlacement === 'top'
-        ? 'translate(0, -100%)'
-        : dPlacement === 'right'
-        ? 'translate(100%, 0)'
-        : dPlacement === 'bottom'
-        ? 'translate(0, 100%)'
-        : 'translate(-100%, 0)';
-    return {
-      'enter-from': { transform },
-      'enter-to': { transition: 'transform 0.2s ease-out' },
-      'leave-to': { transform, transition: 'transform 0.2s ease-in' },
-    };
-  }, [dPlacement]);
-  const transitionCallbackList = useMemo<DTransitionCallbackList>(() => {
-    let cb: () => void;
-    return {
-      afterEnter: (el) => {
-        afterVisibleChange?.(true);
-        const activeEl = document.activeElement as HTMLElement | null;
-        cb = () => activeEl?.focus({ preventScroll: true });
-        el.focus({ preventScroll: true });
-      },
-      beforeLeave: () => {
-        cb?.();
-      },
-      afterLeave: () => {
-        afterVisibleChange?.(false);
-        setDisplay('none');
-      },
-    };
-  }, [afterVisibleChange, setDisplay]);
-  const transitionStyle = useTransition({
-    dVisible: dVisible,
-    dStateList: transitionStateList,
-    dCallbackList: transitionCallbackList,
-    dTarget: contentEl,
-  });
   //#endregion
 
   const contextValue = useMemo(() => ({ id, onClose }), [id, onClose]);
@@ -379,7 +372,6 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
           style={{
             width: dPlacement === 'left' || dPlacement === 'right' ? dWidth : undefined,
             height: dPlacement === 'bottom' || dPlacement === 'top' ? dHeight : undefined,
-            ...transitionStyle,
           }}
           tabIndex={-1}
         >

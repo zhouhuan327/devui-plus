@@ -8,15 +8,18 @@ class ThrottleByAnimationFrame {
   clearTids() {
     if (this.debounceTid) {
       cancelAnimationFrame(this.debounceTid);
+      this.debounceTid = null;
     }
     if (this.tid) {
       cancelAnimationFrame(this.tid);
+      this.tid = null;
     }
   }
 
   run(cb: () => void) {
     if (this.debounceTid) {
       cancelAnimationFrame(this.debounceTid);
+      this.debounceTid = null;
     }
 
     if (this.tid === null) {

@@ -39,9 +39,7 @@ Extend `React.HTMLAttributes<HTMLDivElement>`.
 | dZIndex | Manually control the value of `z-index` | number | - |
 | dMouseEnterDelay | How many milliseconds after the mouse is moved to display | number | 150 |
 | dMouseLeaveDelay | How many milliseconds after the mouse is moved out will it be displayed | number | 150 |
-| dCustomTransition | Custom transition effect | [DTransitionStateList](#DTransitionStateList) | - |
-| dCustomTransitionCallback | Transition hook | [DTransitionCallbackList](#DTransitionCallbackList) | - |
-| dCustomPosition | Custom position update | `(popupEl: HTMLDivElement, targetEl: HTMLElement) => { top: number; left: number }` | - |
+| dCustomPopup | Custom popup | `(popupEl: HTMLDivElement, targetEl: HTMLElement) => { top: number; left: number; stateList: DTransitionStateList }` | - |
 | onTrigger | Trigger popup display/hide callback | `(visible: boolean) => void` | - |
 | afterVisibleChange | Callback for the end of the popup show/hide animation | `(visible: boolean) => void` | - |
 <!-- prettier-ignore-end -->
@@ -50,24 +48,11 @@ Extend `React.HTMLAttributes<HTMLDivElement>`.
 
 ```tsx
 interface DTransitionStateList {
-  'enter-from'?: React.CSSProperties;
-  'enter-active'?: React.CSSProperties;
-  'enter-to'?: React.CSSProperties;
-  'leave-from'?: React.CSSProperties;
-  'leave-active'?: React.CSSProperties;
-  'leave-to'?: React.CSSProperties;
-}
-```
-
-### DTransitionCallbackList
-
-```tsx
-interface DTransitionCallbackList {
-  beforeEnter?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
-  enter?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
-  afterEnter?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
-  beforeLeave?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
-  leave?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
-  afterLeave?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
+  'enter-from'?: Partial<CSSStyleDeclaration>;
+  'enter-active'?: Partial<CSSStyleDeclaration>;
+  'enter-to'?: Partial<CSSStyleDeclaration>;
+  'leave-from'?: Partial<CSSStyleDeclaration>;
+  'leave-active'?: Partial<CSSStyleDeclaration>;
+  'leave-to'?: Partial<CSSStyleDeclaration>;
 }
 ```

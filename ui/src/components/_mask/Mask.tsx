@@ -1,5 +1,3 @@
-import type { DTransitionStateList, DTransitionCallbackList } from '../../hooks/transition';
-
 import { isUndefined } from 'lodash';
 import React, { useCallback, useMemo } from 'react';
 import { useImmer } from 'use-immer';
@@ -13,7 +11,7 @@ export interface DMaskProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function DMask(props: DMaskProps) {
-  const { dVisible, afterVisibleChange, className, style, onClick, ...restProps } = props;
+  const { dVisible, afterVisibleChange, className, onClick, ...restProps } = props;
 
   const dPrefix = useDPrefixConfig();
 
@@ -78,38 +76,24 @@ export function DMask(props: DMaskProps) {
   //#endregion
 
   //#region Transition
-  const transitionStateList = useMemo<DTransitionStateList>(() => {
-    return {
-      'enter-from': { opacity: 0 },
+  useTransition({
+    dTarget: maskEl,
+    dVisible: visible,
+    dStateList: {
+      'enter-from': { opacity: '0' },
       'enter-to': { transition: 'opacity 0.1s linear' },
-      'leave-to': { opacity: 0, transition: 'opacity 0.1s linear' },
-    };
-  }, []);
-  const transitionCallbackList = useMemo<DTransitionCallbackList>(() => {
-    return {
+      'leave-to': { opacity: '0', transition: 'opacity 0.1s linear' },
+    },
+    dCallbackList: {
       afterEnter: () => {
         afterVisibleChange?.(true);
       },
       afterLeave: () => {
         afterVisibleChange?.(false);
       },
-    };
-  }, [afterVisibleChange]);
-  const transitionStyle = useTransition({
-    dVisible: visible,
-    dStateList: transitionStateList,
-    dCallbackList: transitionCallbackList,
-    dTarget: maskEl,
+    },
   });
   //#endregion
 
-  return (
-    <div
-      {...restProps}
-      ref={maskRef}
-      className={getClassName(className, `${dPrefix}mask`)}
-      style={{ ...style, ...transitionStyle }}
-      onClick={handleClick}
-    ></div>
-  );
+  return <div {...restProps} ref={maskRef} className={getClassName(className, `${dPrefix}mask`)} onClick={handleClick}></div>;
 }

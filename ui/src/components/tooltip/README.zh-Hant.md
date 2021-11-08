@@ -38,9 +38,7 @@ title: 文字提示
 | dZIndex | 手动控制 `z-index` 的值 | number | - |
 | dMouseEnterDelay | 鼠标移入后多少毫秒后显示 | number | 150 |
 | dMouseLeaveDelay | 鼠标移出后多少毫秒后显示 | number | 150 |
-| dCustomTransition | 自定义过渡效果 | [DTransitionStateList](#DTransitionStateList) | - |
-| dCustomTransitionCallback | 过渡的钩子 | [DTransitionCallbackList](#DTransitionCallbackList) | - |
-| dCustomPosition | 自定义位置更新 | `(popupEl: HTMLDivElement, targetEl: HTMLElement) => { top: number; left: number }` | - |
+| dCustomPopup | 自定义 popup | `(popupEl: HTMLDivElement, targetEl: HTMLElement) => { top: number; left: number; stateList: DTransitionStateList }` | - |
 | onTrigger | 触发 popup 显示/隐藏的回调 | `(visible: boolean) => void` | - |
 | afterVisibleChange |  popup 显示/隐藏动画结束的回调 | `(visible: boolean) => void` | - |
 <!-- prettier-ignore-end -->
@@ -49,24 +47,11 @@ title: 文字提示
 
 ```tsx
 interface DTransitionStateList {
-  'enter-from'?: React.CSSProperties;
-  'enter-active'?: React.CSSProperties;
-  'enter-to'?: React.CSSProperties;
-  'leave-from'?: React.CSSProperties;
-  'leave-active'?: React.CSSProperties;
-  'leave-to'?: React.CSSProperties;
-}
-```
-
-### DTransitionCallbackList
-
-```tsx
-interface DTransitionCallbackList {
-  beforeEnter?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
-  enter?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
-  afterEnter?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
-  beforeLeave?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
-  leave?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
-  afterLeave?: (el: HTMLElement, rect: DOMRect, setStyle: Updater<React.CSSProperties>) => void;
+  'enter-from'?: Partial<CSSStyleDeclaration>;
+  'enter-active'?: Partial<CSSStyleDeclaration>;
+  'enter-to'?: Partial<CSSStyleDeclaration>;
+  'leave-from'?: Partial<CSSStyleDeclaration>;
+  'leave-active'?: Partial<CSSStyleDeclaration>;
+  'leave-to'?: Partial<CSSStyleDeclaration>;
 }
 ```

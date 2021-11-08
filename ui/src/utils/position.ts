@@ -74,28 +74,36 @@ export type DPlacement =
   | 'left-bottom';
 
 export function getPopupPlacementStyle(
-  el: HTMLElement,
+  popupEl: HTMLElement,
+  targetEl: HTMLElement,
+  placement: DPlacement,
+  offset: number,
+  fixed: boolean
+): { top: number; left: number };
+export function getPopupPlacementStyle(
+  popupEl: HTMLElement,
+  targetEl: HTMLElement,
+  placement: DPlacement,
+  offset: number,
+  fixed: boolean,
+  space: [number, number, number, number]
+): { top: number; left: number; placement: DPlacement } | undefined;
+export function getPopupPlacementStyle(
+  popupEl: HTMLElement,
   targetEl: HTMLElement,
   placement: DPlacement,
   offset = 10,
   fixed = true,
-  overOptions?: {
-    space?: [number, number, number, number];
-    default?: DPlacement;
-  }
-): {
-  top: number;
-  left: number;
-  placement: DPlacement;
-} {
-  const { width, height } = el.getBoundingClientRect();
+  space?: [number, number, number, number]
+): { top: number; left: number; placement?: DPlacement } | undefined {
+  const { width, height } = popupEl.getBoundingClientRect();
 
   const targetRect = targetEl.getBoundingClientRect();
 
   let offsetTop = 0;
   let offsetLeft = 0;
   if (!fixed) {
-    const parentEl = getParentPositioned(el);
+    const parentEl = getParentPositioned(popupEl);
     const parentRect = parentEl.getBoundingClientRect();
     offsetTop = parentEl.scrollTop - parentRect.top;
     offsetLeft = parentEl.scrollLeft - parentRect.left;
@@ -177,20 +185,16 @@ export function getPopupPlacementStyle(
     for (const placement of placements) {
       const { top, left } = getFixedPosition(placement);
       const noOver = [top, window.innerWidth - left - width, window.innerHeight - top - height, left].every(
-        (num, index) => num >= overOptions!.space![index]
+        (num, index) => num >= space![index]
       );
       if (noOver) {
         return { top, left, placement };
       }
     }
-    return {
-      ...getFixedPosition(overOptions!.default!),
-      placement: overOptions!.default!,
-    };
   };
 
-  let positionStyle: { top: number; left: number; placement: DPlacement } = { top: 0, left: 0, placement };
-  if (!isUndefined(overOptions)) {
+  if (!isUndefined(space)) {
+    let positionStyle: { top: number; left: number; placement: DPlacement } | undefined;
     if (placement.startsWith('top')) {
       positionStyle = getAutoFixedPosition([
         placement,
@@ -255,22 +259,24 @@ export function getPopupPlacementStyle(
           : (['right-bottom', 'right', 'right-top'] as const)),
       ]);
     }
+    return positionStyle
+      ? {
+          top: positionStyle.top + offsetTop,
+          left: positionStyle.left + offsetLeft,
+          placement: positionStyle.placement,
+        }
+      : undefined;
   } else {
-    positionStyle = {
-      ...getFixedPosition(placement),
-      placement,
+    const positionStyle = getFixedPosition(placement);
+    return {
+      top: positionStyle.top + offsetTop,
+      left: positionStyle.left + offsetLeft,
     };
   }
-
-  return {
-    top: positionStyle.top + offsetTop,
-    left: positionStyle.left + offsetLeft,
-    placement: positionStyle.placement,
-  };
 }
 
-export function getFixedSideStyle(el: HTMLElement, targetEl: HTMLElement, placement: 'right' | 'left' = 'right', offset = 10) {
-  const { width, height } = el.getBoundingClientRect();
+export function getFixedSideStyle(popupEl: HTMLElement, targetEl: HTMLElement, placement: 'right' | 'left' = 'right', offset = 10) {
+  const { width, height } = popupEl.getBoundingClientRect();
 
   const targetRect = targetEl.getBoundingClientRect();
 
