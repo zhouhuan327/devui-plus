@@ -206,12 +206,20 @@ export const DAffix = React.forwardRef<DAffixRef, DAffixProps>((props, ref) => {
         {...restProps}
         ref={affixRef}
         className={getClassName(className, `${dPrefix}affix`)}
-        style={{ ...style, ...(fixed ? fixedStyle : {}) }}
+        style={{
+          ...style,
+          ...(fixed ? fixedStyle : {}),
+        }}
       >
         {children}
       </div>
       <div {...restProps} ref={referenceRef} className={className} style={{ ...style, visibility: 'hidden' }} aria-hidden="true">
-        <div style={{ ...referenceStyle, ...(fixed ? {} : { display: 'none' }) }}></div>
+        <div
+          style={{
+            ...referenceStyle,
+            ...(fixed ? {} : { display: 'none' }),
+          }}
+        ></div>
       </div>
     </>
   );

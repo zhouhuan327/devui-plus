@@ -1,4 +1,4 @@
-@import '~rfs/scss.scss';
+@import '~rfs/scss';
 
 .app-demo-box {
   border: 1px solid var(--d-divider-color);
@@ -14,7 +14,7 @@
   }
 
   .app-demo-box__renderer {
-    .d-menu {
+    .d-menu:not(.is-horizontal) {
       border-right: 1px solid var(--d-divider-color);
     }
 
@@ -37,7 +37,7 @@
     }
 
     .app-demo-box__description {
-      padding: 24px 24px;
+      padding: 24px;
     }
   }
 
@@ -62,9 +62,11 @@
       &:nth-of-type(2) {
         margin-left: 12px;
       }
+
       &:nth-of-type(3) {
         margin-left: 10px;
       }
+
       &:nth-of-type(4) {
         margin-left: 12px;
       }
@@ -77,8 +79,9 @@
     pre {
       margin: 0;
     }
+
     pre code.hljs {
-      padding: 24px 24px;
+      padding: 24px;
     }
   }
 }

@@ -37,7 +37,7 @@
 }
 
 @mixin utils-disabled($border: 0) {
-  &::after {
+  &::before {
     position: absolute;
     top: -$border;
     right: -$border;
