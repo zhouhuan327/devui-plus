@@ -26,10 +26,11 @@ title: 锚点
 
 ### DAnchorLinkProps
 
-继承 `React.AnchorHTMLAttributes<HTMLAnchorElement>`。
+继承 `React.LiHTMLAttributes<HTMLLIElement>`。
 
 <!-- prettier-ignore-start -->
 | 参数 | 说明 | 类型 | 默认值 | 
 | --- | --- | --- | --- | 
 | dLevel | 设置锚点的层级 | number | 0 |
+| href | 设置锚点链接 | string | - |
 <!-- prettier-ignore-end -->

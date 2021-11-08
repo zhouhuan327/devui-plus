@@ -27,10 +27,11 @@ Extend `React.HTMLAttributes<HTMLUListElement>`.
 
 ### DAnchorLinkProps
 
-Extend `React.AnchorHTMLAttributes<HTMLAnchorElement>`.
+Extend `React.LiHTMLAttributes<HTMLLIElement>`.
 
 <!-- prettier-ignore-start -->
 | Property | Description | Type | Default | 
 | --- | --- | --- | --- | 
 | dLevel | Set the anchor level | number | 0 |
+| href | Set anchor link | string | - |
 <!-- prettier-ignore-end -->

@@ -4,12 +4,13 @@ import { useDPrefixConfig, useDComponentConfig, useCustomRef, useCustomContext }
 import { getClassName } from '../../utils';
 import { DAnchorContext } from './Anchor';
 
-export interface DAnchorLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+export interface DAnchorLinkProps extends React.LiHTMLAttributes<HTMLLIElement> {
   dLevel?: number;
+  href?: string;
 }
 
 export function DAnchorLink(props: DAnchorLinkProps) {
-  const { dLevel = 0, href, style, children, onClick, ...restProps } = useDComponentConfig('anchor-link', props);
+  const { dLevel = 0, href, className, children, onClick, ...restProps } = useDComponentConfig('anchor-link', props);
 
   const dPrefix = useDPrefixConfig();
   const { activeHref: _activeHref, onClick: _onClick, setLinkMap: _setLinkMap } = useCustomContext(DAnchorContext);
@@ -47,7 +48,7 @@ export function DAnchorLink(props: DAnchorLinkProps) {
    * }
    */
   const handelClick = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>) => {
+    (e) => {
       onClick?.(e);
 
       e.preventDefault();
@@ -86,12 +87,14 @@ export function DAnchorLink(props: DAnchorLinkProps) {
 
   return (
     <li
+      {...restProps}
       ref={linkRef}
-      className={getClassName(`${dPrefix}anchor-link`, {
+      className={getClassName(className, `${dPrefix}anchor-link`, {
         'is-active': href && _activeHref === href,
       })}
+      onClick={handelClick}
     >
-      <a {...restProps} style={{ ...style, paddingLeft: 12 + dLevel * 16 }} href={href} onClick={handelClick}>
+      <a style={{ paddingLeft: 12 + dLevel * 16 }} href={href}>
         {children}
       </a>
     </li>
