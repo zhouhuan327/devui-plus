@@ -1,9 +1,8 @@
 import type { DElementSelector } from '../../hooks/element';
-import type { Updater } from 'use-immer';
 
 import { enableMapSet } from 'immer';
 import { isUndefined } from 'lodash';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useImmer } from 'use-immer';
 
 import { useDPrefixConfig, useDComponentConfig, useCustomRef, useElement } from '../../hooks';
@@ -14,7 +13,7 @@ enableMapSet();
 export type DAnchorContextData = {
   activeHref: string | null;
   onClick: (href: string) => void;
-  setLinkMap: Updater<Map<string, HTMLElement>>;
+  links: Map<string, HTMLElement>;
 } | null;
 export const DAnchorContext = React.createContext<DAnchorContextData>(null);
 
@@ -39,6 +38,8 @@ export function DAnchor(props: DAnchorProps) {
   } = useDComponentConfig('anchor', props);
 
   const dPrefix = useDPrefixConfig();
+
+  const [links] = useState(new Map<string, HTMLElement>());
 
   //#region Refs.
   /*
@@ -72,7 +73,6 @@ export function DAnchor(props: DAnchorProps) {
 
   const [dotStyle, setDotStyle] = useImmer<React.CSSProperties>({});
 
-  const [linkMap, setLinkMap] = useImmer(new Map<string, HTMLElement>());
   const [activeHref, setActiveHref] = useImmer<string | null>(null);
   //#endregion
 
@@ -108,7 +108,7 @@ export function DAnchor(props: DAnchorProps) {
       }
 
       let nearestEl: [string, number] | null = null;
-      for (const [href] of linkMap.entries()) {
+      for (const [href] of links.entries()) {
         if (href) {
           const el = document.getElementById(href.slice(1));
           if (el) {
@@ -132,13 +132,13 @@ export function DAnchor(props: DAnchorProps) {
           const href = nearestEl[0];
           activeHref = href;
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const rect = linkMap.get(href)!.getBoundingClientRect();
+          const rect = links.get(href)!.getBoundingClientRect();
           draft.top = rect.top + rect.height / 2 - anchorEl.getBoundingClientRect().top;
         }
       });
       setActiveHref(activeHref);
     }
-  }, [dDistance, dPage, pageEl, anchorEl, linkMap, setActiveHref, setDotStyle]);
+  }, [dDistance, dPage, pageEl, anchorEl, links, setActiveHref, setDotStyle]);
 
   const onClick = useCallback(
     (href: string) => {
@@ -197,7 +197,7 @@ export function DAnchor(props: DAnchorProps) {
   }, [updateAnchor]);
   //#endregion
 
-  const contextValue = useMemo(() => ({ activeHref, onClick, setLinkMap }), [activeHref, onClick, setLinkMap]);
+  const contextValue = useMemo(() => ({ activeHref, onClick, links }), [activeHref, onClick, links]);
 
   return (
     <DAnchorContext.Provider value={contextValue}>

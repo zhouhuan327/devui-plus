@@ -13,7 +13,7 @@ export function DAnchorLink(props: DAnchorLinkProps) {
   const { dLevel = 0, href, className, children, onClick, ...restProps } = useDComponentConfig('anchor-link', props);
 
   const dPrefix = useDPrefixConfig();
-  const { activeHref: _activeHref, onClick: _onClick, setLinkMap: _setLinkMap } = useCustomContext(DAnchorContext);
+  const { activeHref: _activeHref, onClick: _onClick, links: _links } = useCustomContext(DAnchorContext);
 
   //#region Refs.
   /*
@@ -72,17 +72,12 @@ export function DAnchorLink(props: DAnchorLinkProps) {
    */
   useEffect(() => {
     if (linkEl && href) {
-      _setLinkMap?.((draft) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        draft.set(href, linkEl as any);
-      });
+      _links?.set(href, linkEl as any);
       return () => {
-        _setLinkMap?.((draft) => {
-          draft.delete(href);
-        });
+        _links?.delete(href);
       };
     }
-  }, [_setLinkMap, href, linkEl]);
+  }, [_links, href, linkEl]);
   //#endregion
 
   return (
