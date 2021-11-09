@@ -47,8 +47,10 @@ export function App() {
         }
       }, 300);
       if (!environment.production) {
-        asyncGroup.fromEvent(window, 'beforeunload').subscribe(() => {
-          localStorage.setItem('scrollTop', mainEl.scrollTop.toString());
+        asyncGroup.fromEvent(window, 'beforeunload').subscribe({
+          next: () => {
+            localStorage.setItem('scrollTop', mainEl.scrollTop.toString());
+          },
         });
       }
       return () => {

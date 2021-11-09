@@ -5,12 +5,10 @@ import type { DPlacement } from '../../utils/position';
 import { isUndefined } from 'lodash';
 import React, { useCallback, useEffect, useMemo, useImperativeHandle } from 'react';
 import ReactDOM from 'react-dom';
-import { Subject } from 'rxjs';
 import { useImmer } from 'use-immer';
 
 import { useDPrefixConfig, useCustomRef, useAsync, useTransition, useElement } from '../../hooks';
 import { getClassName, globalMaxIndexManager, globalScrollCapture, getPopupPlacementStyle } from '../../utils';
-import { useLockOperation } from './utils';
 
 export interface DPopupProps extends React.HTMLAttributes<HTMLDivElement> {
   dVisible?: boolean;
@@ -58,7 +56,6 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
   } = props;
 
   const dPrefix = useDPrefixConfig();
-  const lockOperation = useLockOperation();
   const asyncCapture = useAsync();
 
   //#region Refs.
@@ -85,8 +82,6 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
    *   public data: 'example';
    * }
    */
-  const [triggerObserver$] = useImmer(new Subject<[boolean, number?]>());
-
   const [popupPositionStyle, setPopupPositionStyle] = useImmer<React.CSSProperties>({});
 
   const [autoVisible, setAutoVisible] = useImmer(false);
@@ -282,33 +277,6 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
   });
   //#endregion
 
-  //#region Mounted & Unmount.
-  /*
-   * @example
-   * // Mounted
-   * useEffect(() => {
-   *   // code
-   * }, []);
-   *
-   * // Unmount
-   * useEffect(() => {
-   *   return () => {
-   *     // code
-   *   }
-   * }, [deps]);
-   *
-   * - Vue: onMounted & onUnmounted.
-   * @see https://v3.vuejs.org/guide/composition-api-lifecycle-hooks.html
-   * - Angular: ngAfterViewInit & ngOnDestroy.
-   * @see https://angular.io/guide/lifecycle-hooks
-   */
-  useEffect(() => {
-    return () => {
-      triggerObserver$.complete();
-    };
-  }, [triggerObserver$]);
-  //#endregion
-
   //#region DidUpdate.
   /*
    * We need a service(ReactConvertService) that implement useEffect.
@@ -339,116 +307,93 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
-    if (popupEl) {
-      switch (dTrigger) {
-        case 'hover':
-          asyncGroup.fromEvent(popupEl, 'mouseenter').subscribe(() => {
-            triggerObserver$.next([true, dMouseEnterDelay]);
-          });
-          asyncGroup.fromEvent(popupEl, 'mouseleave').subscribe(() => {
-            triggerObserver$.next([false, dMouseLeaveDelay]);
-          });
-          break;
-
-        case 'focus':
-          asyncGroup.fromEvent(popupEl, 'focus').subscribe(() => {
-            lockOperation.lock();
-            triggerObserver$.next([true]);
-          });
-          asyncGroup.fromEvent(popupEl, 'blur').subscribe(() => {
-            lockOperation.handleOperation(() => {
-              triggerObserver$.next([false]);
-            });
-          });
-          break;
-
-        case 'click':
-          asyncGroup.fromEvent(popupEl, 'click').subscribe(() => {
-            lockOperation.lock();
-            triggerObserver$.next([true]);
-          });
-          break;
-
-        default:
-          break;
-      }
-    }
-    return () => {
-      asyncCapture.deleteGroup(asyncId);
-    };
-  }, [dTrigger, dMouseEnterDelay, dMouseLeaveDelay, dTarget, asyncCapture, triggerObserver$, lockOperation, visible, popupEl]);
-
-  useEffect(() => {
-    const [asyncGroup, asyncId] = asyncCapture.createGroup();
-    if (targetEl.current) {
-      switch (dTrigger) {
-        case 'hover':
-          asyncGroup.fromEvent([targetEl.current], 'mouseenter').subscribe(() => {
-            triggerObserver$.next([true, dMouseEnterDelay]);
-          });
-          asyncGroup.fromEvent([targetEl.current], 'mouseleave').subscribe(() => {
-            triggerObserver$.next([false, dMouseLeaveDelay]);
-          });
-          break;
-
-        case 'focus':
-          asyncGroup.fromEvent([targetEl.current], 'focus').subscribe(() => {
-            lockOperation.lock();
-            triggerObserver$.next([true]);
-          });
-          asyncGroup.fromEvent([targetEl.current], 'blur').subscribe(() => {
-            lockOperation.handleOperation(() => {
-              triggerObserver$.next([false]);
-            });
-          });
-          break;
-
-        case 'click':
-          asyncGroup.fromEvent(targetEl.current, 'click').subscribe(() => {
-            if (!visible) {
-              lockOperation.lock();
-              triggerObserver$.next([true]);
-            }
-          });
-          asyncGroup.fromEvent(document, 'click').subscribe(() => {
-            lockOperation.handleOperation(() => {
-              triggerObserver$.next([false]);
-            });
-          });
-          break;
-
-        default:
-          break;
-      }
-    }
-    return () => {
-      asyncCapture.deleteGroup(asyncId);
-    };
-  }, [dTrigger, dMouseEnterDelay, dMouseLeaveDelay, asyncCapture, triggerObserver$, lockOperation, targetEl, visible]);
-
-  useEffect(() => {
-    const [asyncGroup, asyncId] = asyncCapture.createGroup();
-    const ob = triggerObserver$.subscribe({
-      next: ([visible, timeout]) => {
-        const deal = () => {
-          setAutoVisible(visible);
-          onTrigger?.(visible);
-        };
-        asyncGroup.clearAll();
-        if (isUndefined(timeout)) {
-          deal();
-        } else {
-          asyncGroup.setTimeout(() => {
-            deal();
-          }, timeout);
+    let hoverTid: number | null = null;
+    let blurTid: number | null = null;
+    let documentTid: number | null = null;
+    const getEventEls = (...args: Array<HTMLElement | null>) => {
+      const arr = [];
+      for (const el of args) {
+        if (el) {
+          arr.push(el);
         }
-      },
-    });
+      }
+      return arr;
+    };
+    const setVisible = (visible: boolean) => {
+      setAutoVisible(visible);
+      if (autoVisible !== visible) {
+        onTrigger?.(visible);
+      }
+    };
+
+    switch (dTrigger) {
+      case 'hover':
+        asyncGroup.fromEvent(getEventEls(targetEl.current, popupEl), 'mouseenter').subscribe({
+          next: () => {
+            hoverTid && asyncGroup.clearTimeout(hoverTid);
+            hoverTid = asyncGroup.setTimeout(() => {
+              hoverTid = null;
+              setVisible(true);
+            }, dMouseEnterDelay);
+          },
+        });
+        asyncGroup.fromEvent(getEventEls(targetEl.current, popupEl), 'mouseleave').subscribe({
+          next: () => {
+            hoverTid && asyncGroup.clearTimeout(hoverTid);
+            hoverTid = asyncGroup.setTimeout(() => {
+              hoverTid = null;
+              setVisible(false);
+            }, dMouseLeaveDelay);
+          },
+        });
+        break;
+
+      case 'focus':
+        asyncGroup.fromEvent(getEventEls(targetEl.current, popupEl), 'focus').subscribe({
+          next: () => {
+            blurTid && asyncGroup.cancelAnimationFrame(blurTid);
+            setVisible(true);
+          },
+        });
+        asyncGroup.fromEvent(getEventEls(targetEl.current, popupEl), 'blur').subscribe({
+          next: () => {
+            blurTid = asyncGroup.requestAnimationFrame(() => {
+              setVisible(false);
+            });
+          },
+        });
+        break;
+
+      case 'click':
+        asyncGroup.fromEvent(getEventEls(popupEl), 'click').subscribe({
+          next: () => {
+            documentTid && asyncGroup.cancelAnimationFrame(documentTid);
+            setVisible(true);
+          },
+        });
+        asyncGroup.fromEvent(getEventEls(targetEl.current), 'click').subscribe({
+          next: () => {
+            documentTid && asyncGroup.cancelAnimationFrame(documentTid);
+            setVisible(!autoVisible);
+          },
+        });
+        asyncGroup.fromEvent(document, 'click', { capture: true }).subscribe({
+          next: () => {
+            documentTid = asyncGroup.requestAnimationFrame(() => {
+              setVisible(false);
+            });
+          },
+        });
+        break;
+
+      default:
+        break;
+    }
+
     return () => {
-      ob.unsubscribe();
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [asyncCapture, triggerObserver$, onTrigger, setAutoVisible]);
+  }, [dMouseEnterDelay, dMouseLeaveDelay, dTrigger, onTrigger, asyncCapture, popupEl, targetEl, autoVisible, setAutoVisible]);
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();

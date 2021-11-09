@@ -61,8 +61,10 @@ export function AppDemoBox(props: AppDemoBoxProps) {
 
     setActive(window.location.hash === `#${id}`);
 
-    asyncGroup.fromEvent(window, 'hashchange').subscribe(() => {
-      setActive(window.location.hash === `#${id}`);
+    asyncGroup.fromEvent(window, 'hashchange').subscribe({
+      next: () => {
+        setActive(window.location.hash === `#${id}`);
+      },
     });
     return () => {
       asyncCapture.deleteGroup(asyncId);
