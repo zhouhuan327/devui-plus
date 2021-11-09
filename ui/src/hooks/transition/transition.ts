@@ -28,11 +28,10 @@ export interface DTransitionProps {
   dVisible?: boolean;
   dStateList?: DTransitionStateList | ((el: HTMLElement) => DTransitionStateList | undefined);
   dCallbackList?: DTransitionCallbackList | ((el: HTMLElement) => DTransitionCallbackList | undefined);
-  dDisabled?: boolean;
 }
 
 export function useTransition(props: DTransitionProps) {
-  const { dTarget, dVisible = false, dStateList, dCallbackList, dDisabled = false } = props;
+  const { dTarget, dVisible = false, dStateList, dCallbackList } = props;
 
   const asyncCapture = useAsync();
 
@@ -41,58 +40,54 @@ export function useTransition(props: DTransitionProps) {
 
   const transitionThrottle = useMemo(() => throttle.run.bind(throttle), [throttle]);
 
-  if (dTarget && !dDisabled && isUndefined(dTarget.dataset['dVisible'])) {
+  if (dTarget && isUndefined(dTarget.dataset['dVisible'])) {
     cssRecord.setCss(dTarget, { display: 'none' });
   }
 
   useEffect(() => {
     if (dTarget) {
-      if (dDisabled) {
+      if (isUndefined(dTarget.dataset['dVisible'])) {
+        dTarget.dataset['dVisible'] = String(dVisible);
         cssRecord.backCss(dTarget);
-      } else {
-        if (isUndefined(dTarget.dataset['dVisible'])) {
-          dTarget.dataset['dVisible'] = String(dVisible);
-          cssRecord.backCss(dTarget);
-          cssRecord.setCss(dTarget, { display: dVisible ? '' : 'none' });
-        } else if (dTarget.dataset['dVisible'] !== String(dVisible)) {
-          dTarget.dataset['dVisible'] = String(dVisible);
-          cssRecord.backCss(dTarget);
-          asyncCapture.clearAll();
-          throttle.skipRun();
+        cssRecord.setCss(dTarget, { display: dVisible ? '' : 'none' });
+      } else if (dTarget.dataset['dVisible'] !== String(dVisible)) {
+        dTarget.dataset['dVisible'] = String(dVisible);
+        cssRecord.backCss(dTarget);
+        asyncCapture.clearAll();
+        throttle.skipRun();
 
-          const stateList = isUndefined(dStateList) ? {} : isFunction(dStateList) ? dStateList(dTarget) ?? {} : dStateList;
-          const callbackList = isUndefined(dCallbackList) ? {} : isFunction(dCallbackList) ? dCallbackList(dTarget) ?? {} : dCallbackList;
+        const stateList = isUndefined(dStateList) ? {} : isFunction(dStateList) ? dStateList(dTarget) ?? {} : dStateList;
+        const callbackList = isUndefined(dCallbackList) ? {} : isFunction(dCallbackList) ? dCallbackList(dTarget) ?? {} : dCallbackList;
 
-          callbackList[dVisible ? 'beforeEnter' : 'beforeLeave']?.(dTarget);
+        callbackList[dVisible ? 'beforeEnter' : 'beforeLeave']?.(dTarget);
+        cssRecord.setCss(dTarget, {
+          ...stateList[dVisible ? 'enter-from' : 'leave-from'],
+          ...stateList[dVisible ? 'enter-active' : 'leave-active'],
+        });
+
+        asyncCapture.setTimeout(() => {
+          cssRecord.backCss(dTarget);
           cssRecord.setCss(dTarget, {
-            ...stateList[dVisible ? 'enter-from' : 'leave-from'],
+            ...stateList[dVisible ? 'enter-to' : 'leave-to'],
             ...stateList[dVisible ? 'enter-active' : 'leave-active'],
           });
+          callbackList[dVisible ? 'enter' : 'leave']?.(dTarget);
 
+          const timeout = getMaxTime(
+            dVisible
+              ? [stateList['enter-from']?.transition, stateList['enter-active']?.transition, stateList['enter-to']?.transition]
+              : [stateList['leave-from']?.transition, stateList['leave-active']?.transition, stateList['leave-to']?.transition]
+          );
           asyncCapture.setTimeout(() => {
             cssRecord.backCss(dTarget);
-            cssRecord.setCss(dTarget, {
-              ...stateList[dVisible ? 'enter-to' : 'leave-to'],
-              ...stateList[dVisible ? 'enter-active' : 'leave-active'],
-            });
-            callbackList[dVisible ? 'enter' : 'leave']?.(dTarget);
-
-            const timeout = getMaxTime(
-              dVisible
-                ? [stateList['enter-from']?.transition, stateList['enter-active']?.transition, stateList['enter-to']?.transition]
-                : [stateList['leave-from']?.transition, stateList['leave-active']?.transition, stateList['leave-to']?.transition]
-            );
-            asyncCapture.setTimeout(() => {
-              cssRecord.backCss(dTarget);
-              cssRecord.setCss(dTarget, { display: dVisible ? '' : 'none' });
-              callbackList[dVisible ? 'afterEnter' : 'afterLeave']?.(dTarget);
-              throttle.continueRun();
-            }, timeout);
-          }, 20);
-        }
+            cssRecord.setCss(dTarget, { display: dVisible ? '' : 'none' });
+            callbackList[dVisible ? 'afterEnter' : 'afterLeave']?.(dTarget);
+            throttle.continueRun();
+          }, timeout);
+        }, 20);
       }
     }
-  }, [dCallbackList, dStateList, dTarget, dVisible, dDisabled, asyncCapture, cssRecord, throttle]);
+  }, [dCallbackList, dStateList, dTarget, dVisible, asyncCapture, cssRecord, throttle]);
 
   return transitionThrottle;
 }
@@ -103,11 +98,10 @@ export interface DCollapseTransitionProps {
   dCallbackList?: DTransitionCallbackList;
   dDirection?: 'width' | 'height';
   dDuring?: number;
-  dDisabled?: boolean;
 }
 
 export function useCollapseTransition(props: DCollapseTransitionProps) {
-  const { dTarget, dVisible = false, dCallbackList, dDirection = 'height', dDuring = 300, dDisabled } = props;
+  const { dTarget, dVisible = false, dCallbackList, dDirection = 'height', dDuring = 300 } = props;
 
   const transitionThrottle = useTransition({
     dTarget,
@@ -127,7 +121,6 @@ export function useCollapseTransition(props: DCollapseTransitionProps) {
       };
     },
     dCallbackList,
-    dDisabled,
   });
 
   return transitionThrottle;

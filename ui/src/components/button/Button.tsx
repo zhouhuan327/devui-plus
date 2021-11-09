@@ -77,17 +77,12 @@ export const DButton = React.forwardRef<HTMLButtonElement, DButtonProps>((props,
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (dDisabled) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
       onClick?.(e);
       if (type === 'primary' || type === 'secondary' || type === 'outline' || type === 'dashed') {
         wave.next([e.currentTarget, `var(--${dPrefix}color-${color})`]);
       }
     },
-    [dDisabled, dPrefix, wave, color, type, onClick]
+    [dPrefix, wave, color, type, onClick]
   );
   //#endregion
 
