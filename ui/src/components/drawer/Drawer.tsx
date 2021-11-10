@@ -1,22 +1,15 @@
 import type { DElementSelector } from '../../hooks/element';
+import type { DTransitionRef } from '../_transition';
 
 import { isUndefined, isString } from 'lodash';
 import React, { useEffect, useCallback, useMemo, useImperativeHandle } from 'react';
 import ReactDOM from 'react-dom';
 import { useImmer } from 'use-immer';
 
-import {
-  useDPrefixConfig,
-  useDComponentConfig,
-  useLockScroll,
-  useCustomRef,
-  useId,
-  useAsync,
-  useTransition,
-  useElement,
-} from '../../hooks';
+import { useDPrefixConfig, useDComponentConfig, useLockScroll, useCustomRef, useId, useAsync, useElement } from '../../hooks';
 import { getClassName, globalMaxIndexManager, globalEscStack, globalScrollCapture, getFillingStyle, toPx } from '../../utils';
 import { DMask } from '../_mask';
+import { DTransition } from '../_transition';
 
 export type DDrawerContextData = { id: number; onClose?: () => void } | null;
 export const DDrawerContext = React.createContext<DDrawerContextData>(null);
@@ -78,7 +71,7 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
    * @see https://angular.io/api/core/ViewChild
    */
   const [drawerEl, drawerRef] = useCustomRef<HTMLDivElement>();
-  const [contentEl, contentRef] = useCustomRef<HTMLDivElement>();
+  const [contentRefContent, contentRef] = useCustomRef<DTransitionRef>();
   //#endregion
 
   //#region Element
@@ -201,46 +194,6 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   }, [dChildDrawer, setDistance]);
   //#endregion
 
-  //#region Transition
-  const transitionThrottle = useTransition({
-    dTarget: contentEl,
-    dVisible: dVisible,
-    dStateList: () => {
-      const transform =
-        dPlacement === 'top'
-          ? 'translate(0, -100%)'
-          : dPlacement === 'right'
-          ? 'translate(100%, 0)'
-          : dPlacement === 'bottom'
-          ? 'translate(0, 100%)'
-          : 'translate(-100%, 0)';
-      return {
-        'enter-from': { transform },
-        'enter-to': { transition: 'transform 0.2s ease-out' },
-        'leave-to': { transform, transition: 'transform 0.2s ease-in' },
-      };
-    },
-    dCallbackList: () => {
-      let cb: () => void;
-      return {
-        afterEnter: (el) => {
-          afterVisibleChange?.(true);
-          const activeEl = document.activeElement as HTMLElement | null;
-          cb = () => activeEl?.focus({ preventScroll: true });
-          el.focus({ preventScroll: true });
-        },
-        beforeLeave: () => {
-          cb?.();
-        },
-        afterLeave: () => {
-          afterVisibleChange?.(false);
-          setDisplay('none');
-        },
-      };
-    },
-  });
-  //#endregion
-
   //#region DidUpdate.
   /*
    * We need a service(ReactConvertService) that implement useEffect.
@@ -294,22 +247,22 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
-    if (dVisible && containerEl.current) {
-      asyncGroup.onResize(containerEl.current, () => transitionThrottle(updatePosition));
+    if (dVisible && containerEl.current && contentRefContent) {
+      asyncGroup.onResize(containerEl.current, () => contentRefContent.transitionThrottle(updatePosition));
     }
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [dVisible, asyncCapture, transitionThrottle, containerEl, updatePosition]);
+  }, [dVisible, asyncCapture, contentRefContent, containerEl, updatePosition]);
 
   useEffect(() => {
-    if (dVisible) {
-      const tid = globalScrollCapture.addTask(() => transitionThrottle(updatePosition));
+    if (dVisible && contentRefContent) {
+      const tid = globalScrollCapture.addTask(() => contentRefContent.transitionThrottle(updatePosition));
       return () => {
         globalScrollCapture.deleteTask(tid);
       };
     }
-  }, [dVisible, transitionThrottle, updatePosition]);
+  }, [dVisible, contentRefContent, updatePosition]);
 
   useEffect(() => {
     if (dVisible) {
@@ -321,8 +274,10 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   }, [dVisible, id, onClose]);
 
   useEffect(() => {
-    transitionThrottle(updatePosition);
-  }, [transitionThrottle, updatePosition]);
+    if (contentRefContent) {
+      contentRefContent.transitionThrottle(updatePosition);
+    }
+  }, [contentRefContent, updatePosition]);
 
   useLockScroll(dVisible && isUndefined(dContainer));
   //#endregion
@@ -365,20 +320,57 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
         aria-describedby={`${dPrefix}drawer-content-${id}`}
       >
         {dMask && <DMask dVisible={dVisible} onClick={handleMaskClick} />}
-        <div
+        <DTransition
           ref={contentRef}
-          id={`${dPrefix}drawer-content-${id}`}
-          className={getClassName(`${dPrefix}drawer-content`, `${dPrefix}drawer-content--${dPlacement}`)}
-          style={{
-            width: dPlacement === 'left' || dPlacement === 'right' ? dWidth : undefined,
-            height: dPlacement === 'bottom' || dPlacement === 'top' ? dHeight : undefined,
+          dVisible={dVisible}
+          dStateList={() => {
+            const transform =
+              dPlacement === 'top'
+                ? 'translate(0, -100%)'
+                : dPlacement === 'right'
+                ? 'translate(100%, 0)'
+                : dPlacement === 'bottom'
+                ? 'translate(0, 100%)'
+                : 'translate(-100%, 0)';
+            return {
+              'enter-from': { transform },
+              'enter-to': { transition: 'transform 0.2s ease-out' },
+              'leave-to': { transform, transition: 'transform 0.2s ease-in' },
+            };
           }}
-          tabIndex={-1}
+          dCallbackList={() => {
+            let cb: () => void;
+            return {
+              afterEnter: (el) => {
+                afterVisibleChange?.(true);
+                const activeEl = document.activeElement as HTMLElement | null;
+                cb = () => activeEl?.focus({ preventScroll: true });
+                el.focus({ preventScroll: true });
+              },
+              beforeLeave: () => {
+                cb?.();
+              },
+              afterLeave: () => {
+                afterVisibleChange?.(false);
+                setDisplay('none');
+              },
+            };
+          }}
         >
-          {dHeader}
-          <div className={`${dPrefix}drawer-content__body`}>{children}</div>
-          {dFooter}
-        </div>
+          <div
+            id={`${dPrefix}drawer-content-${id}`}
+            className={getClassName(`${dPrefix}drawer-content`, `${dPrefix}drawer-content--${dPlacement}`)}
+            style={{
+              width: dPlacement === 'left' || dPlacement === 'right' ? dWidth : undefined,
+              height: dPlacement === 'bottom' || dPlacement === 'top' ? dHeight : undefined,
+            }}
+            tabIndex={-1}
+          >
+            {dHeader}
+            <div className={`${dPrefix}drawer-content__body`}>{children}</div>
+            {dFooter}
+          </div>
+        </DTransition>
       </div>
       {child}
     </DDrawerContext.Provider>

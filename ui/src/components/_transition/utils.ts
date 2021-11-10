@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { isString } from 'lodash';
-
 export function getMaxTime(strs: Array<string | undefined>) {
   const milliseconds: number[] = [];
   strs.forEach((str) => {

@@ -2,8 +2,9 @@ import { isUndefined } from 'lodash';
 import React, { useCallback, useMemo } from 'react';
 import { useImmer } from 'use-immer';
 
-import { useCustomRef, useDPrefixConfig, useTransition } from '../../hooks';
+import { useDPrefixConfig } from '../../hooks';
 import { getClassName } from '../../utils';
+import { DTransition } from '../_transition';
 
 export interface DMaskProps extends React.HTMLAttributes<HTMLDivElement> {
   dVisible?: boolean;
@@ -14,18 +15,6 @@ export function DMask(props: DMaskProps) {
   const { dVisible, afterVisibleChange, className, onClick, ...restProps } = props;
 
   const dPrefix = useDPrefixConfig();
-
-  //#region Refs.
-  /*
-   * @see https://reactjs.org/docs/refs-and-the-dom.html
-   *
-   * - Vue: ref.
-   * @see https://v3.vuejs.org/guide/component-template-refs.html
-   * - Angular: ViewChild.
-   * @see https://angular.io/api/core/ViewChild
-   */
-  const [maskEl, maskRef] = useCustomRef<HTMLDivElement>();
-  //#endregion
 
   //#region States.
   /*
@@ -75,25 +64,24 @@ export function DMask(props: DMaskProps) {
   );
   //#endregion
 
-  //#region Transition
-  useTransition({
-    dTarget: maskEl,
-    dVisible: visible,
-    dStateList: {
-      'enter-from': { opacity: '0' },
-      'enter-to': { transition: 'opacity 0.1s linear' },
-      'leave-to': { opacity: '0', transition: 'opacity 0.1s linear' },
-    },
-    dCallbackList: {
-      afterEnter: () => {
-        afterVisibleChange?.(true);
-      },
-      afterLeave: () => {
-        afterVisibleChange?.(false);
-      },
-    },
-  });
-  //#endregion
-
-  return <div {...restProps} ref={maskRef} className={getClassName(className, `${dPrefix}mask`)} onClick={handleClick}></div>;
+  return (
+    <DTransition
+      dVisible={visible}
+      dStateList={{
+        'enter-from': { opacity: '0' },
+        'enter-to': { transition: 'opacity 0.1s linear' },
+        'leave-to': { opacity: '0', transition: 'opacity 0.1s linear' },
+      }}
+      dCallbackList={{
+        afterEnter: () => {
+          afterVisibleChange?.(true);
+        },
+        afterLeave: () => {
+          afterVisibleChange?.(false);
+        },
+      }}
+    >
+      <div {...restProps} className={getClassName(className, `${dPrefix}mask`)} onClick={handleClick}></div>
+    </DTransition>
+  );
 }

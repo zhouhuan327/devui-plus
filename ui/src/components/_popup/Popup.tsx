@@ -1,14 +1,16 @@
 import type { DElementSelector } from '../../hooks/element';
 import type { DTransitionStateList } from '../../hooks/transition';
 import type { DPlacement } from '../../utils/position';
+import type { DTransitionRef } from '../_transition';
 
 import { isUndefined } from 'lodash';
 import React, { useCallback, useEffect, useMemo, useImperativeHandle } from 'react';
 import ReactDOM from 'react-dom';
 import { useImmer } from 'use-immer';
 
-import { useDPrefixConfig, useCustomRef, useAsync, useTransition, useElement } from '../../hooks';
+import { useDPrefixConfig, useCustomRef, useAsync, useElement } from '../../hooks';
 import { getClassName, globalMaxIndexManager, globalScrollCapture, getPopupPlacementStyle } from '../../utils';
+import { DTransition } from '../_transition';
 
 export interface DPopupProps extends React.HTMLAttributes<HTMLDivElement> {
   dVisible?: boolean;
@@ -22,13 +24,13 @@ export interface DPopupProps extends React.HTMLAttributes<HTMLDivElement> {
   dZIndex?: number;
   dMouseEnterDelay?: number;
   dMouseLeaveDelay?: number;
-  dCustomPopup?: (popupEl: HTMLDivElement, targetEl: HTMLElement) => { top: number; left: number; stateList: DTransitionStateList };
+  dCustomPopup?: (popupEl: HTMLElement, targetEl: HTMLElement) => { top: number; left: number; stateList: DTransitionStateList };
   onTrigger?: (visible: boolean) => void;
   afterVisibleChange?: (visible: boolean) => void;
 }
 
 export interface DPopupRef {
-  el: HTMLDivElement | null;
+  el: HTMLElement | null;
   target: DElementSelector;
   updatePosition: () => void;
 }
@@ -67,7 +69,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
    * - Angular: ViewChild.
    * @see https://angular.io/api/core/ViewChild
    */
-  const [popupEl, popupRef] = useCustomRef<HTMLDivElement>();
+  const [popupRefContent, popupRef] = useCustomRef<DTransitionRef>();
   //#endregion
 
   //#region States.
@@ -135,7 +137,8 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
   const placement = useMemo(() => (dAutoPlace ? autoPlacement : dPlacement), [dAutoPlace, autoPlacement, dPlacement]);
 
   const updatePosition = useCallback(() => {
-    if (popupEl && targetEl.current && containerEl.current) {
+    if (popupRefContent && popupRefContent.el && targetEl.current && containerEl.current) {
+      const popupEl = popupRefContent.el;
       const fixed = isUndefined(dContainer);
 
       if (isUndefined(dCustomPopup)) {
@@ -237,7 +240,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
           'leave-to': { transform: 'scale(0)', opacity: '0', transition: 'transform 0.1s ease-in, opacity 0.1s ease-in', transformOrigin },
         };
       } else {
-        const { top, left, stateList } = dCustomPopup(popupEl, targetEl.current);
+        const { top, left, stateList } = dCustomPopup(popupRefContent.el, targetEl.current);
         setPopupPositionStyle({
           position: fixed ? 'fixed' : 'absolute',
           top,
@@ -252,29 +255,13 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
     dCustomPopup,
     dDistance,
     dPlacement,
-    popupEl,
+    popupRefContent,
     autoPlacement,
     containerEl,
     targetEl,
     setPopupPositionStyle,
     setAutoPlacement,
   ]);
-  //#endregion
-
-  //#region Transition
-  const transitionThrottle = useTransition({
-    dTarget: popupEl,
-    dVisible: visible,
-    dStateList: updatePosition,
-    dCallbackList: {
-      afterEnter: () => {
-        afterVisibleChange?.(true);
-      },
-      afterLeave: () => {
-        afterVisibleChange?.(false);
-      },
-    },
-  });
   //#endregion
 
   //#region DidUpdate.
@@ -307,6 +294,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
+    const popupEl = popupRefContent?.el ?? null;
     let hoverTid: number | null = null;
     let blurTid: number | null = null;
     let documentTid: number | null = null;
@@ -393,69 +381,84 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [dMouseEnterDelay, dMouseLeaveDelay, dTrigger, onTrigger, asyncCapture, popupEl, targetEl, autoVisible, setAutoVisible]);
+  }, [dMouseEnterDelay, dMouseLeaveDelay, dTrigger, onTrigger, asyncCapture, popupRefContent, targetEl, autoVisible, setAutoVisible]);
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
-    if (visible && popupEl) {
-      asyncGroup.onResize(popupEl, () => transitionThrottle(updatePosition));
+    if (visible && popupRefContent && popupRefContent.el) {
+      asyncGroup.onResize(popupRefContent.el, () => popupRefContent.transitionThrottle(updatePosition));
     }
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [asyncCapture, transitionThrottle, visible, popupEl, updatePosition]);
+  }, [asyncCapture, visible, popupRefContent, updatePosition]);
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
-    if (visible && targetEl.current) {
-      asyncGroup.onResize(targetEl.current, () => transitionThrottle(updatePosition));
+    if (visible && targetEl.current && popupRefContent) {
+      asyncGroup.onResize(targetEl.current, () => popupRefContent.transitionThrottle(updatePosition));
     }
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [asyncCapture, transitionThrottle, targetEl, visible, updatePosition]);
+  }, [asyncCapture, popupRefContent, targetEl, visible, updatePosition]);
 
   useEffect(() => {
-    if (visible) {
-      const tid = globalScrollCapture.addTask(() => transitionThrottle(updatePosition));
+    if (visible && popupRefContent) {
+      const tid = globalScrollCapture.addTask(() => popupRefContent.transitionThrottle(updatePosition));
       return () => {
         globalScrollCapture.deleteTask(tid);
       };
     }
-  }, [visible, transitionThrottle, updatePosition]);
+  }, [visible, popupRefContent, updatePosition]);
 
   useEffect(() => {
-    transitionThrottle(updatePosition);
-  }, [transitionThrottle, updatePosition]);
+    if (popupRefContent) {
+      popupRefContent.transitionThrottle(updatePosition);
+    }
+  }, [popupRefContent, updatePosition]);
   //#endregion
 
   useImperativeHandle(
     ref,
     () => ({
-      el: popupEl,
+      el: popupRefContent?.el ?? null,
       target: dTarget,
       updatePosition,
     }),
-    [popupEl, dTarget, updatePosition]
+    [popupRefContent, dTarget, updatePosition]
   );
 
   return (
     containerEl.current &&
     ReactDOM.createPortal(
-      <div
+      <DTransition
         ref={popupRef}
-        {...restProps}
-        className={getClassName(className, `${dPrefix}popup`, `${dPrefix}popup--` + placement)}
-        style={{
-          ...style,
-          zIndex,
-          ...popupPositionStyle,
+        dVisible={visible}
+        dStateList={updatePosition}
+        dCallbackList={{
+          afterEnter: () => {
+            afterVisibleChange?.(true);
+          },
+          afterLeave: () => {
+            afterVisibleChange?.(false);
+          },
         }}
-        tabIndex={-1}
       >
-        {dArrow && <div className={`${dPrefix}popup__arrow`}></div>}
-        {children}
-      </div>,
+        <div
+          {...restProps}
+          className={getClassName(className, `${dPrefix}popup`, `${dPrefix}popup--` + placement)}
+          style={{
+            ...style,
+            zIndex,
+            ...popupPositionStyle,
+          }}
+          tabIndex={-1}
+        >
+          {dArrow && <div className={`${dPrefix}popup__arrow`}></div>}
+          {children}
+        </div>
+      </DTransition>,
       containerEl.current
     )
   );

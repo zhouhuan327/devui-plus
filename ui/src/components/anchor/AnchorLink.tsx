@@ -72,7 +72,7 @@ export function DAnchorLink(props: DAnchorLinkProps) {
    */
   useEffect(() => {
     if (linkEl && href) {
-      _links?.set(href, linkEl as any);
+      _links?.set(href, linkEl as HTMLElement);
       return () => {
         _links?.delete(href);
       };
