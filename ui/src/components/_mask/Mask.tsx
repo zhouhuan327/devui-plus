@@ -56,11 +56,9 @@ export function DMask(props: DMaskProps) {
   const handleClick = useCallback(
     (e) => {
       onClick?.(e);
-      if (isUndefined(dVisible)) {
-        setAutoVisible(!visible);
-      }
+      setAutoVisible(false);
     },
-    [dVisible, visible, onClick, setAutoVisible]
+    [onClick, setAutoVisible]
   );
   //#endregion
 

@@ -39,7 +39,7 @@ Extend `React.HTMLAttributes<HTMLDivElement>`.
 | dZIndex | Manually control the value of `z-index` | number | - |
 | dMouseEnterDelay | How many milliseconds after the mouse is moved to display | number | 150 |
 | dMouseLeaveDelay | How many milliseconds after the mouse is moved out will it be displayed | number | 150 |
-| dCustomPopup | Custom popup | `(popupEl: HTMLDivElement, targetEl: HTMLElement) => { top: number; left: number; stateList: DTransitionStateList }` | - |
+| dCustomPopup | Custom popup | `(popupEl: HTMLElement, targetEl: HTMLElement) => { top: number; left: number; stateList: DTransitionStateList }` | - |
 | onTrigger | Trigger popup display/hide callback | `(visible: boolean) => void` | - |
 | afterVisibleChange | Callback for the end of the popup show/hide animation | `(visible: boolean) => void` | - |
 <!-- prettier-ignore-end -->

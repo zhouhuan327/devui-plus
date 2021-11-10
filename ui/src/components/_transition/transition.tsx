@@ -1,4 +1,4 @@
-import { isFunction, isNumber, isUndefined } from 'lodash';
+import { isFunction, isNumber, isString, isUndefined } from 'lodash';
 import React, { useMemo, useEffect, useImperativeHandle } from 'react';
 import { useImmer } from 'use-immer';
 
@@ -106,13 +106,43 @@ export const DTransition = React.forwardRef<DTransitionRef, DTransitionProps>((p
     cssRecord.setCss(el, { display: 'none' });
   }
 
+  //#region Mounted & Unmount.
+  /*
+   * @example
+   * // Mounted
+   * useEffect(() => {
+   *   // code
+   * }, []);
+   *
+   * // Unmount
+   * useEffect(() => {
+   *   return () => {
+   *     // code
+   *   }
+   * }, [deps]);
+   *
+   * - Vue: onMounted & onUnmounted.
+   * @see https://v3.vuejs.org/guide/composition-api-lifecycle-hooks.html
+   * - Angular: ngAfterViewInit & ngOnDestroy.
+   * @see https://angular.io/guide/lifecycle-hooks
+   */
   useEffect(() => {
     return () => {
-      asyncCapture.clearAll();
       throttle.clearTids();
     };
   }, [asyncCapture, throttle]);
+  //#endregion
 
+  //#region DidUpdate.
+  /*
+   * We need a service(ReactConvertService) that implement useEffect.
+   * @see https://reactjs.org/docs/hooks-effect.html
+   *
+   * - Vue: onUpdated.
+   * @see https://v3.vuejs.org/api/composition-api.html#lifecycle-hooks
+   * - Angular: ngDoCheck.
+   * @see https://angular.io/api/core/DoCheck
+   */
   useEffect(() => {
     if (el) {
       if (dSkipFirst && isUndefined(el.dataset['dVisible'])) {
@@ -124,40 +154,44 @@ export const DTransition = React.forwardRef<DTransitionRef, DTransitionProps>((p
         cssRecord.backCss(el);
         asyncCapture.clearAll();
         throttle.clearTids();
-        throttle.skipRun();
 
-        const stateList = isUndefined(dStateList) ? {} : isFunction(dStateList) ? dStateList(el) ?? {} : dStateList;
-        const callbackList = isUndefined(dCallbackList) ? {} : isFunction(dCallbackList) ? dCallbackList(el) ?? {} : dCallbackList;
+        if (!isUndefined(dStateList)) {
+          throttle.skipRun();
 
-        callbackList[dVisible ? 'beforeEnter' : 'beforeLeave']?.(el);
-        cssRecord.setCss(el, {
-          ...stateList[dVisible ? 'enter-from' : 'leave-from'],
-          ...stateList[dVisible ? 'enter-active' : 'leave-active'],
-        });
+          const stateList = isFunction(dStateList) ? dStateList(el) ?? {} : dStateList;
+          const callbackList = isUndefined(dCallbackList) ? {} : isFunction(dCallbackList) ? dCallbackList(el) ?? {} : dCallbackList;
 
-        asyncCapture.setTimeout(() => {
-          cssRecord.backCss(el);
+          callbackList[dVisible ? 'beforeEnter' : 'beforeLeave']?.(el);
           cssRecord.setCss(el, {
-            ...stateList[dVisible ? 'enter-to' : 'leave-to'],
+            ...stateList[dVisible ? 'enter-from' : 'leave-from'],
             ...stateList[dVisible ? 'enter-active' : 'leave-active'],
           });
-          callbackList[dVisible ? 'enter' : 'leave']?.(el);
 
-          const timeout = getMaxTime(
-            dVisible
-              ? [stateList['enter-from']?.transition, stateList['enter-active']?.transition, stateList['enter-to']?.transition]
-              : [stateList['leave-from']?.transition, stateList['leave-active']?.transition, stateList['leave-to']?.transition]
-          );
           asyncCapture.setTimeout(() => {
             cssRecord.backCss(el);
-            dAutoHidden && cssRecord.setCss(el, { display: dVisible ? '' : 'none' });
-            callbackList[dVisible ? 'afterEnter' : 'afterLeave']?.(el, cssRecord.setCss.bind(cssRecord));
-            throttle.continueRun();
-          }, timeout);
-        }, 20);
+            cssRecord.setCss(el, {
+              ...stateList[dVisible ? 'enter-to' : 'leave-to'],
+              ...stateList[dVisible ? 'enter-active' : 'leave-active'],
+            });
+            callbackList[dVisible ? 'enter' : 'leave']?.(el);
+
+            const timeout = getMaxTime(
+              dVisible
+                ? [stateList['enter-from']?.transition, stateList['enter-active']?.transition, stateList['enter-to']?.transition]
+                : [stateList['leave-from']?.transition, stateList['leave-active']?.transition, stateList['leave-to']?.transition]
+            );
+            asyncCapture.setTimeout(() => {
+              cssRecord.backCss(el);
+              dAutoHidden && cssRecord.setCss(el, { display: dVisible ? '' : 'none' });
+              callbackList[dVisible ? 'afterEnter' : 'afterLeave']?.(el, cssRecord.setCss.bind(cssRecord));
+              throttle.continueRun();
+            }, timeout);
+          }, 20);
+        }
       }
     }
   }, [dCallbackList, dStateList, el, dVisible, dAutoHidden, dSkipFirst, asyncCapture, cssRecord, throttle]);
+  //#endregion
 
   useImperativeHandle(
     ref,
@@ -177,12 +211,26 @@ export interface DCollapseTransitionProps {
   dSkipFirst?: boolean;
   dDirection?: 'width' | 'height';
   dDuring?: number;
+  dTimingFunction?: string | { enter: string; leave: string };
   dSpace?: number | string;
   children: React.ReactNode;
 }
 
 export const DCollapseTransition = React.forwardRef<DTransitionRef, DCollapseTransitionProps>((props, ref) => {
-  const { dVisible = false, dCallbackList, dSkipFirst = true, dDirection = 'height', dDuring = 300, dSpace = 0, children } = props;
+  const {
+    dVisible = false,
+    dCallbackList,
+    dSkipFirst = true,
+    dDirection = 'height',
+    dTimingFunction,
+    dDuring = 300,
+    dSpace = 0,
+    children,
+  } = props;
+
+  const enterTimeFunction = dTimingFunction ? (isString(dTimingFunction) ? dTimingFunction : dTimingFunction.enter) : 'linear';
+  const leaveTimeFunction = dTimingFunction ? (isString(dTimingFunction) ? dTimingFunction : dTimingFunction.leave) : 'linear';
+  const opacity = dSpace === 0 ? '0' : '1';
 
   return (
     <DTransition
@@ -190,19 +238,23 @@ export const DCollapseTransition = React.forwardRef<DTransitionRef, DCollapseTra
       dVisible={dVisible}
       dStateList={(el) => {
         const rect = el.getBoundingClientRect();
+        // handle nested
+        if (rect[dDirection] === 0) {
+          return undefined;
+        }
         return {
-          'enter-from': { [dDirection]: isNumber(dSpace) ? dSpace + 'px' : dSpace, opacity: dSpace === 0 ? '0' : '1' },
+          'enter-from': { [dDirection]: isNumber(dSpace) ? dSpace + 'px' : dSpace, opacity },
           'enter-active': { overflow: 'hidden' },
           'enter-to': {
+            transition: `${dDirection} ${dDuring}ms ${enterTimeFunction}, opacity ${dDuring}ms ${enterTimeFunction}`,
             [dDirection]: rect[dDirection] + 'px',
-            transition: `${dDirection} ${dDuring}ms ease-out, opacity ${dDuring}ms ease-out`,
           },
           'leave-from': { [dDirection]: rect[dDirection] + 'px' },
           'leave-active': { overflow: 'hidden' },
           'leave-to': {
+            transition: `${dDirection} ${dDuring}ms ${leaveTimeFunction}, opacity ${dDuring}ms ${leaveTimeFunction}`,
             [dDirection]: isNumber(dSpace) ? dSpace + 'px' : dSpace,
-            opacity: dSpace === 0 ? '0' : '1',
-            transition: `${dDirection} ${dDuring}ms ease-in, opacity ${dDuring}ms ease-in`,
+            opacity,
           },
         };
       }}

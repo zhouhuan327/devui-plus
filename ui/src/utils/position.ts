@@ -275,19 +275,63 @@ export function getPopupPlacementStyle(
   }
 }
 
-export function getFixedSideStyle(popupEl: HTMLElement, targetEl: HTMLElement, placement: 'right' | 'left' = 'right', offset = 10) {
+export function getFixedSideStyle(
+  popupEl: HTMLElement,
+  targetEl: HTMLElement,
+  placement: 'top' | 'right' | 'bottom' | 'left' = 'right',
+  offset = 10
+): {
+  top: number;
+  left: number;
+  transformOrigin: string;
+} {
   const { width, height } = popupEl.getBoundingClientRect();
 
   const targetRect = targetEl.getBoundingClientRect();
 
-  let top = Math.max(targetRect.top, 10);
-  top = Math.min(top, window.innerHeight - height - 10);
+  let top =
+    placement === 'left' || placement === 'right'
+      ? targetRect.top
+      : placement === 'top'
+      ? targetRect.top - height - offset
+      : targetRect.top + targetRect.height + offset;
+  top = Math.min(Math.max(top, 10), window.innerHeight - height - 10);
 
-  const left = placement === 'right' ? targetRect.left + targetRect.width + offset : targetRect.left - width - offset;
+  const left =
+    placement === 'right'
+      ? targetRect.left + targetRect.width + offset
+      : placement === 'left'
+      ? targetRect.left - width - offset
+      : targetRect.left;
 
+  const transformOrigin =
+    placement === 'top'
+      ? 'center bottom'
+      : placement === 'right'
+      ? `left ${Math.min(targetRect.top - top + targetRect.height / 2, height)}px`
+      : placement === 'bottom'
+      ? 'center top'
+      : `right ${Math.min(targetRect.top - top + targetRect.height / 2, height)}px`;
+
+  if ((placement === 'top' && top === 10) || (placement === 'bottom' && top === window.innerHeight - height - 10)) {
+    if (popupEl.dataset['dMenuPosition']) {
+      const [top, left, transformOrigin] = popupEl.dataset['dMenuPosition'].split(',');
+      delete popupEl.dataset['dMenuPosition'];
+      return {
+        top: Number(top),
+        left: Number(left),
+        transformOrigin,
+      };
+    } else {
+      popupEl.dataset['dMenuPosition'] = [top, left, transformOrigin].join();
+      return getFixedSideStyle(popupEl, targetEl, placement === 'top' ? 'bottom' : 'top');
+    }
+  }
+
+  delete popupEl.dataset['dMenuPosition'];
   return {
     top,
     left,
-    transformOrigin: `${placement === 'right' ? 'left' : 'right'} ${Math.min(targetRect.top - top + targetRect.height / 2, height)}px`,
+    transformOrigin,
   };
 }

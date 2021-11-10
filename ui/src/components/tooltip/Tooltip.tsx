@@ -51,16 +51,18 @@ export const DTooltip = React.forwardRef<DPopupRef, DTooltipProps>((props, ref) 
   return (
     <>
       {child}
-      <DPopup
-        {...restProps}
-        ref={ref}
-        id={`d-tooltip-${id}`}
-        className={getClassName(className, `${dPrefix}tooltip`)}
-        role="tooltip"
-        dTarget={`[aria-describedby="d-tooltip-${id}"]`}
-      >
-        {dTitle}
-      </DPopup>
+      {dTitle && (
+        <DPopup
+          {...restProps}
+          ref={ref}
+          id={`d-tooltip-${id}`}
+          className={getClassName(className, `${dPrefix}tooltip`)}
+          role="tooltip"
+          dTarget={`[aria-describedby="d-tooltip-${id}"]`}
+        >
+          {dTitle}
+        </DPopup>
+      )}
     </>
   );
 });

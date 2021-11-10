@@ -1,35 +1,43 @@
 import { isUndefined } from 'lodash';
-import React, { useCallback, useContext, useEffect, useMemo } from 'react';
+import React, { useCallback } from 'react';
 
 import { useDPrefixConfig, useDComponentConfig, useCustomContext } from '../../hooks';
-import { getClassName } from '../../utils';
+import { getClassName, toId } from '../../utils';
+import { DTrigger } from '../_trigger';
+import { DTooltip } from '../tooltip';
 import { DMenuContext } from './Menu';
-import { DMenuSubContext } from './MenuSub';
 
 export interface DMenuItemProps extends React.LiHTMLAttributes<HTMLLIElement> {
-  dDisabled?: boolean;
   dIcon?: React.ReactNode;
+  dDisabled?: boolean;
   __id?: string;
   __level?: number;
+  __navMenu?: boolean;
+  __onFocus?: (id: string) => void;
+  __onBlur?: (id: string) => void;
 }
 
 export function DMenuItem(props: DMenuItemProps) {
   const {
-    dDisabled = false,
     dIcon,
-    __id,
+    dDisabled = false,
+    __id = '',
     __level = 0,
+    __navMenu = false,
+    __onFocus,
+    __onBlur,
     className,
     style,
     tabIndex,
     children,
     onClick,
+    onFocus,
+    onBlur,
     ...restProps
   } = useDComponentConfig('menu-item', props);
 
   const dPrefix = useDPrefixConfig();
-  const { activeId: _activeId, onActiveChange: _onActiveChange } = useCustomContext(DMenuContext);
-  const { setIds: _setIds } = useCustomContext(DMenuSubContext);
+  const { dMode: _dMode, activeId: _activeId, onActiveChange: _onActiveChange } = useCustomContext(DMenuContext);
 
   //#region Getters.
   /*
@@ -53,54 +61,57 @@ export function DMenuItem(props: DMenuItemProps) {
    */
   const handleClick = useCallback(
     (e) => {
-      if (!dDisabled) {
-        onClick?.(e);
-        _onActiveChange?.(__id as string);
-      }
+      onClick?.(e);
+      _onActiveChange?.(__id);
     },
-    [_onActiveChange, dDisabled, __id, onClick]
+    [_onActiveChange, __id, onClick]
+  );
+
+  const handleFocus = useCallback(
+    (e) => {
+      onFocus?.(e);
+      __onFocus?.(`menu-item-${toId(__id)}`);
+    },
+    [__id, __onFocus, onFocus]
+  );
+
+  const handleBlur = useCallback(
+    (e) => {
+      onBlur?.(e);
+      __onBlur?.(`menu-item-${toId(__id)}`);
+    },
+    [__id, __onBlur, onBlur]
   );
   //#endregion
 
-  //#region DidUpdate.
-  /*
-   * We need a service(ReactConvertService) that implement useEffect.
-   * @see https://reactjs.org/docs/hooks-effect.html
-   *
-   * - Vue: onUpdated.
-   * @see https://v3.vuejs.org/api/composition-api.html#lifecycle-hooks
-   * - Angular: ngDoCheck.
-   * @see https://angular.io/api/core/DoCheck
-   */
-  useEffect(() => {
-    _setIds?.((draft) => {
-      draft.add(__id as string);
-    });
-    return () => {
-      _setIds?.((draft) => {
-        draft.delete(__id as string);
-      });
-    };
-  }, [_setIds, __id]);
-  //#endregion
-
   return (
-    <li
-      {...restProps}
-      className={getClassName(className, `${dPrefix}menu-item`, {
-        'is-active': _activeId === __id,
-        'is-disabled': dDisabled,
-      })}
-      style={{ ...style, paddingLeft: 16 + __level * 20 }}
-      role="menuitem"
-      tabIndex={isUndefined(tabIndex) ? -1 : tabIndex}
-      aria-disabled={dDisabled}
-      onClick={handleClick}
-    >
-      <div className={`${dPrefix}menu-item__indicator`}>
-        <div style={{ backgroundColor: __level === 0 ? 'transparent' : undefined }}></div>
-      </div>
-      <div className={`${dPrefix}menu-item__title`}>{children}</div>
-    </li>
+    <DTrigger dDisabled={dDisabled}>
+      <DTooltip dTitle={_dMode === 'icon' && __navMenu && children} dPlacement="right">
+        <li
+          {...restProps}
+          id={`menu-item-${toId(__id)}`}
+          className={getClassName(className, `${dPrefix}menu-item`, {
+            'is-active': _activeId === __id,
+            'is-horizontal': _dMode === 'horizontal' && __navMenu,
+            'is-icon': _dMode === 'icon' && __navMenu,
+          })}
+          style={{
+            ...style,
+            paddingLeft: 16 + __level * 20,
+          }}
+          role="menuitem"
+          tabIndex={isUndefined(tabIndex) ? -1 : tabIndex}
+          onClick={handleClick}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+        >
+          <div className={`${dPrefix}menu-item__indicator`}>
+            <div style={{ backgroundColor: __level === 0 ? 'transparent' : undefined }}></div>
+          </div>
+          {dIcon && <div className={`${dPrefix}menu-item__icon`}>{dIcon}</div>}
+          <div className={`${dPrefix}menu-item__title`}>{children}</div>
+        </li>
+      </DTooltip>
+    </DTrigger>
   );
 }

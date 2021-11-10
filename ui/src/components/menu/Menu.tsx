@@ -1,19 +1,27 @@
 import { enableMapSet } from 'immer';
 import { isUndefined } from 'lodash';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useImmer } from 'use-immer';
 
 import { useDPrefixConfig, useDComponentConfig } from '../../hooks';
-import { getClassName } from '../../utils';
-import { generateChildren } from './utils';
+import { getClassName, getComponentName } from '../../utils';
+import { DCollapseTransition } from '../_transition';
+import { DTrigger } from '../_trigger';
+import { generateChildren, isMenuComponent } from './utils';
 
 enableMapSet();
 
 export type DMenuContextData = {
-  dPopup: boolean;
-  dPopupTrigger: 'hover' | 'click';
+  dMode: 'horizontal' | 'vertical' | 'popup' | 'icon';
+  dExpandTrigger: 'hover' | 'click';
+  dExpandOne: boolean;
   activeId: string | null;
   onActiveChange: (id: string) => void;
+  currentExpandId: string | null;
+  onExpandChange: (id: string, expand: boolean) => void;
+  inMenu: boolean;
+  ids: Map<string, string[]>;
+  expands: Set<string>;
 } | null;
 export const DMenuContext = React.createContext<DMenuContextData>(null);
 
@@ -21,10 +29,11 @@ export interface DMenuProps extends React.HTMLAttributes<HTMLElement> {
   dActive?: string;
   dDefaultActive?: string;
   dDefaultExpands?: string[];
-  dHorizontal?: boolean;
-  dPopup?: boolean;
-  dPopupTrigger?: 'hover' | 'click';
+  dMode?: 'horizontal' | 'vertical' | 'popup' | 'icon';
+  dExpandOne?: boolean;
+  dExpandTrigger?: 'hover' | 'click';
   onActiveChange?: (id: string) => void;
+  onExpandsChange?: (ids: string[]) => void;
 }
 
 export function DMenu(props: DMenuProps) {
@@ -32,16 +41,20 @@ export function DMenu(props: DMenuProps) {
     dActive,
     dDefaultActive,
     dDefaultExpands,
-    dHorizontal = false,
-    dPopup = false,
-    dPopupTrigger = 'hover',
+    dMode = 'vertical',
+    dExpandOne = false,
+    dExpandTrigger,
     onActiveChange,
+    onExpandsChange,
     className,
     children,
     ...restProps
   } = useDComponentConfig('menu', props);
 
   const dPrefix = useDPrefixConfig();
+
+  const [ids] = useState(new Map<string, string[]>());
+  const [expands] = useState(new Set(dDefaultExpands));
 
   //#region States.
   /*
@@ -56,6 +69,12 @@ export function DMenu(props: DMenuProps) {
    * }
    */
   const [autoActiveId, setAutoActiveId] = useImmer<string | null>(dDefaultActive ?? null);
+
+  const [focusId, setFocusId] = useImmer(new Set<string>());
+
+  const [currentExpandId, setCurrentExpandId] = useImmer<string | null>(null);
+
+  const [inMenu, setInMenu] = useImmer(false);
   //#endregion
 
   //#region Getters.
@@ -80,12 +99,27 @@ export function DMenu(props: DMenuProps) {
    */
   const activeId = useMemo(() => (isUndefined(dActive) ? autoActiveId : dActive), [dActive, autoActiveId]);
 
+  const handleTrigger = useCallback(
+    (val) => {
+      setInMenu(val);
+    },
+    [setInMenu]
+  );
+
   const _onActiveChange = useCallback(
     (id) => {
       onActiveChange?.(id);
       setAutoActiveId(id);
     },
     [onActiveChange, setAutoActiveId]
+  );
+
+  const onExpandChange = useCallback(
+    (id: string, expand: boolean) => {
+      setCurrentExpandId(expand ? id : null);
+      onExpandsChange?.(Array.from(expands));
+    },
+    [onExpandsChange, expands, setCurrentExpandId]
   );
   //#endregion
 
@@ -99,37 +133,81 @@ export function DMenu(props: DMenuProps) {
    * @see https://angular.io/api/common/NgTemplateOutlet
    */
   const childs = useMemo(() => {
-    return generateChildren(children).map((child, index) => {
-      let tabIndex = (child as React.ReactElement).props.tabIndex;
-      if (index === 0) {
-        tabIndex = 0;
+    const arr: string[] = [];
+    const _childs = generateChildren(children).map((child, index) => {
+      if (isMenuComponent(child)) {
+        arr.push(child.props.__id);
+
+        let tabIndex = child.props.tabIndex;
+        if (index === 0) {
+          tabIndex = 0;
+        }
+
+        let __navMenu = undefined;
+        const componentName = getComponentName(child);
+        if (componentName === 'DMenuSub' || componentName === 'DMenuItem') {
+          __navMenu = true;
+        }
+
+        return React.cloneElement(child, {
+          ...child.props,
+          tabIndex,
+          __navMenu,
+          __onFocus: (id: string) => {
+            setFocusId((draft) => {
+              draft.add(id);
+            });
+          },
+          __onBlur: (id: string) => {
+            setFocusId((draft) => {
+              draft.delete(id);
+            });
+          },
+        });
       }
 
-      return React.cloneElement(child as React.ReactElement, {
-        ...(child as React.ReactElement).props,
-        tabIndex,
-      });
+      return child;
     });
-  }, [children]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ids?.set(Symbol('menu') as any, arr);
+    return _childs;
+  }, [children, ids, setFocusId]);
   //#endregion
 
   const contextValue = useMemo(
-    () => ({ dPopup, dPopupTrigger, activeId, onActiveChange: _onActiveChange }),
-    [dPopup, dPopupTrigger, activeId, _onActiveChange]
+    () => ({
+      dMode,
+      dExpandTrigger: isUndefined(dExpandTrigger) ? (dMode === 'vertical' ? 'click' : 'hover') : dExpandTrigger,
+      dExpandOne,
+      activeId,
+      onActiveChange: _onActiveChange,
+      currentExpandId,
+      onExpandChange,
+      inMenu,
+      ids,
+      expands,
+    }),
+    [dMode, dExpandTrigger, dExpandOne, activeId, _onActiveChange, currentExpandId, onExpandChange, inMenu, ids, expands]
   );
 
   return (
     <DMenuContext.Provider value={contextValue}>
-      <nav
-        {...restProps}
-        className={getClassName(className, `${dPrefix}menu`, {
-          'is-horizontal': dHorizontal,
-        })}
-        role="menubar"
-        aria-orientation={dHorizontal ? 'horizontal' : 'vertical'}
-      >
-        {childs}
-      </nav>
+      <DCollapseTransition dVisible={dMode !== 'icon'} dDirection="width" dDuring={200} dSpace={80}>
+        <DTrigger dTrigger="hover" onTrigger={handleTrigger}>
+          <nav
+            {...restProps}
+            className={getClassName(className, `${dPrefix}menu`, {
+              'is-horizontal': dMode === 'horizontal',
+            })}
+            tabIndex={-1}
+            role="menubar"
+            aria-orientation={dMode === 'horizontal' ? 'horizontal' : 'vertical'}
+            aria-activedescendant={Array.from(focusId)[0] ?? undefined}
+          >
+            {childs}
+          </nav>
+        </DTrigger>
+      </DCollapseTransition>
     </DMenuContext.Provider>
   );
 }
