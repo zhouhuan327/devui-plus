@@ -80,19 +80,31 @@ export function DDrawerFooter(props: DDrawerFooterProps) {
     }
   }, [dCancelButtonProps, cancelLoading]);
 
-  const handOkClick = useCallback(async () => {
-    setOkLoading(true);
-    const shouldClose = await onOkClick?.();
-    setOkLoading(false);
-    if (!isBoolean(shouldClose) || shouldClose === true) {
+  const handOkClick = useCallback(() => {
+    const shouldClose = onOkClick?.();
+    if (shouldClose instanceof Promise) {
+      setOkLoading(true);
+      shouldClose.then((val) => {
+        setOkLoading(false);
+        if (val !== false) {
+          _onClose?.();
+        }
+      });
+    } else if (shouldClose !== false) {
       _onClose?.();
     }
   }, [_onClose, onOkClick, setOkLoading]);
-  const handCancelClick = useCallback(async () => {
-    setCancelLoading(true);
-    const shouldClose = await onCancelClick?.();
-    setCancelLoading(false);
-    if (!isBoolean(shouldClose) || shouldClose === true) {
+  const handCancelClick = useCallback(() => {
+    const shouldClose = onCancelClick?.();
+    if (shouldClose instanceof Promise) {
+      setCancelLoading(true);
+      shouldClose.then((val) => {
+        setCancelLoading(false);
+        if (val !== false) {
+          _onClose?.();
+        }
+      });
+    } else if (shouldClose !== false) {
       _onClose?.();
     }
   }, [_onClose, onCancelClick, setCancelLoading]);

@@ -98,7 +98,7 @@
             "ignoreProperties": true
           }
         ],
-        "no-unused-vars": "warn"
+        "no-unused-vars": "error"
       }
     }
   ]
