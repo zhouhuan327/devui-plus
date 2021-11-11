@@ -3,7 +3,7 @@ import { isUndefined } from 'lodash';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useImmer } from 'use-immer';
 
-import { useDPrefixConfig, useDComponentConfig } from '../../hooks';
+import { useDPrefixConfig, useDComponentConfig, useAutoSet } from '../../hooks';
 import { getClassName, getComponentName } from '../../utils';
 import { DCollapseTransition } from '../_transition';
 import { DTrigger } from '../_trigger';
@@ -55,6 +55,8 @@ export function DMenu(props: DMenuProps) {
 
   const dPrefix = useDPrefixConfig();
 
+  const [activeId, setActiveId] = useAutoSet(dDefaultActive, dActive, onActiveChange);
+
   const [currentData] = useState({
     ids: new Map<string, string[]>(),
     expands: new Set(dDefaultExpands),
@@ -72,8 +74,6 @@ export function DMenu(props: DMenuProps) {
    *   public data: 'example';
    * }
    */
-  const [autoActiveId, setAutoActiveId] = useImmer<string | null>(dDefaultActive ?? null);
-
   const [focusId, setFocusId] = useImmer(new Set<string>());
 
   const [currentExpandId, setCurrentExpandId] = useImmer<string | null>(null);
@@ -101,8 +101,6 @@ export function DMenu(props: DMenuProps) {
    *   constructor(private reactConvert: ReactConvertService) {}
    * }
    */
-  const activeId = useMemo(() => (isUndefined(dActive) ? autoActiveId : dActive), [dActive, autoActiveId]);
-
   const handleTrigger = useCallback(
     (val) => {
       setInMenu(val);
@@ -113,9 +111,9 @@ export function DMenu(props: DMenuProps) {
   const _onActiveChange = useCallback(
     (id) => {
       onActiveChange?.(id);
-      setAutoActiveId(id);
+      setActiveId(id);
     },
-    [onActiveChange, setAutoActiveId]
+    [onActiveChange, setActiveId]
   );
 
   const onExpandChange = useCallback(

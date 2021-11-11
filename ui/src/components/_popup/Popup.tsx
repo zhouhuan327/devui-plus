@@ -3,11 +3,11 @@ import type { DPlacement } from '../../utils/position';
 import type { DTransitionStateList, DTransitionRef } from '../_transition';
 
 import { isUndefined } from 'lodash';
-import React, { useCallback, useEffect, useMemo, useImperativeHandle, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useImperativeHandle } from 'react';
 import ReactDOM from 'react-dom';
 import { useImmer } from 'use-immer';
 
-import { useDPrefixConfig, useCustomRef, useAsync, useElement } from '../../hooks';
+import { useDPrefixConfig, useCustomRef, useAsync, useElement, useAutoSet } from '../../hooks';
 import { getClassName, globalMaxIndexManager, globalScrollCapture, getPopupPlacementStyle } from '../../utils';
 import { DTransition } from '../_transition';
 
@@ -58,9 +58,8 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
 
   const dPrefix = useDPrefixConfig();
   const asyncCapture = useAsync();
-  const [currentData] = useState({
-    visible: false,
-  });
+
+  const [visible, setVisible] = useAutoSet(false, dVisible, onTrigger);
 
   //#region Refs.
   /*
@@ -87,8 +86,6 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
    * }
    */
   const [popupPositionStyle, setPopupPositionStyle] = useImmer<React.CSSProperties>({});
-
-  const [autoVisible, setAutoVisible] = useImmer(false);
 
   const [autoPlacement, setAutoPlacement] = useImmer<DPlacement>(dPlacement);
 
@@ -134,8 +131,6 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
    *   constructor(private reactConvert: ReactConvertService) {}
    * }
    */
-  const visible = useMemo(() => (isUndefined(dVisible) ? autoVisible : dVisible), [dVisible, autoVisible]);
-
   const placement = useMemo(() => (dAutoPlace ? autoPlacement : dPlacement), [dAutoPlace, autoPlacement, dPlacement]);
 
   const updatePosition = useCallback(() => {
@@ -298,17 +293,6 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();
     const popupEl = popupRefContent?.el ?? null;
     if (popupEl && targetEl.current) {
-      const setVisible = (visible?: boolean) => {
-        if (targetEl.current) {
-          const _visible = isUndefined(visible) ? !currentData.visible : visible;
-          if (currentData.visible !== _visible) {
-            currentData.visible = _visible;
-            setAutoVisible(_visible);
-            onTrigger?.(_visible);
-          }
-        }
-      };
-
       if (dTrigger === 'hover') {
         let tid: number | null = null;
 
@@ -362,7 +346,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
         asyncGroup.fromEvent(targetEl.current, 'click').subscribe({
           next: () => {
             tid && asyncGroup.cancelAnimationFrame(tid);
-            setVisible();
+            setVisible(!visible);
           },
         });
         asyncGroup.fromEvent(document, 'click', { capture: true }).subscribe({
@@ -378,7 +362,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [dMouseEnterDelay, dMouseLeaveDelay, dTrigger, onTrigger, asyncCapture, currentData, popupRefContent, targetEl, setAutoVisible]);
+  }, [dVisible, dMouseEnterDelay, dMouseLeaveDelay, dTrigger, onTrigger, asyncCapture, popupRefContent, targetEl, visible, setVisible]);
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();

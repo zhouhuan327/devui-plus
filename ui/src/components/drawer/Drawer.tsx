@@ -144,7 +144,7 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
   const width = useMemo(() => (isString(dWidth) ? toPx(dWidth, true) : dWidth), [dWidth]);
   const height = useMemo(() => (isString(dHeight) ? toPx(dHeight, true) : dHeight), [dHeight]);
 
-  const handleMaskClick = useCallback(() => {
+  const handleMaskClose = useCallback(() => {
     if (dMaskClosable) {
       onClose?.();
     }
@@ -319,7 +319,7 @@ export const DDrawer = React.forwardRef<DDrawerRef, DDrawerProps>((props, ref) =
         aria-labelledby={dHeader ? `${dPrefix}drawer-content__header-${id}` : undefined}
         aria-describedby={`${dPrefix}drawer-content-${id}`}
       >
-        {dMask && <DMask dVisible={dVisible} onClick={handleMaskClick} />}
+        {dMask && <DMask dVisible={dVisible} onClose={handleMaskClose} />}
         <DTransition
           ref={contentRef}
           dVisible={dVisible}

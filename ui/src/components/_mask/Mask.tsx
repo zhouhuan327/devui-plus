@@ -1,6 +1,4 @@
-import { isUndefined } from 'lodash';
-import React, { useCallback, useMemo } from 'react';
-import { useImmer } from 'use-immer';
+import React, { useCallback } from 'react';
 
 import { useDPrefixConfig } from '../../hooks';
 import { getClassName } from '../../utils';
@@ -8,28 +6,14 @@ import { DTransition } from '../_transition';
 
 export interface DMaskProps extends React.HTMLAttributes<HTMLDivElement> {
   dVisible?: boolean;
+  onClose?: () => void;
   afterVisibleChange?: (visible: boolean) => void;
 }
 
 export function DMask(props: DMaskProps) {
-  const { dVisible, afterVisibleChange, className, onClick, ...restProps } = props;
+  const { dVisible, onClose, afterVisibleChange, className, onClick, ...restProps } = props;
 
   const dPrefix = useDPrefixConfig();
-
-  //#region States.
-  /*
-   * @see https://reactjs.org/docs/state-and-lifecycle.html
-   *
-   * - Vue: data.
-   * @see https://v3.vuejs.org/api/options-data.html#data-2
-   * - Angular: property on a class.
-   * @example
-   * export class HeroChildComponent {
-   *   public data: 'example';
-   * }
-   */
-  const [autoVisible, setAutoVisible] = useImmer(false);
-  //#endregion
 
   //#region Getters.
   /*
@@ -51,20 +35,18 @@ export function DMask(props: DMaskProps) {
    *   constructor(private reactConvert: ReactConvertService) {}
    * }
    */
-  const visible = useMemo(() => (isUndefined(dVisible) ? autoVisible : dVisible), [dVisible, autoVisible]);
-
   const handleClick = useCallback(
     (e) => {
       onClick?.(e);
-      setAutoVisible(false);
+      onClose?.();
     },
-    [onClick, setAutoVisible]
+    [onClick, onClose]
   );
   //#endregion
 
   return (
     <DTransition
-      dVisible={visible}
+      dVisible={dVisible}
       dStateList={{
         'enter-from': { opacity: '0' },
         'enter-to': { transition: 'opacity 0.1s linear' },
