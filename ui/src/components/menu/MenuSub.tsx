@@ -62,8 +62,7 @@ export function DMenuSub(props: DMenuSubProps) {
     currentExpandId: _currentExpandId,
     onExpandChange: _onExpandChange,
     inMenu: _inMenu,
-    ids: _ids,
-    expands: _expands,
+    currentData: _currentData,
   } = useCustomContext(DMenuContext);
   const { setPopupIds: _setPopupIds } = useCustomContext(DMenuSubContext);
 
@@ -93,7 +92,9 @@ export function DMenuSub(props: DMenuSubProps) {
    *   public data: 'example';
    * }
    */
-  const [expand, setExpand] = useImmer(isUndefined(dDefaultExpand) ? Array.from(_expands ?? []).includes(__id) : dDefaultExpand);
+  const [expand, setExpand] = useImmer(
+    isUndefined(dDefaultExpand) ? Array.from(_currentData?.expands ?? []).includes(__id) : dDefaultExpand
+  );
   const [visible, setVisible] = useImmer(false);
   const [currentVisible, setCurrentVisible] = useImmer(false);
 
@@ -134,7 +135,7 @@ export function DMenuSub(props: DMenuSubProps) {
         popupEl,
         targetEl,
         horizontal ? 'bottom' : 'right',
-        horizontal ? 12 : targetEl.dataset['popup'] === 'true' ? 18 : 10
+        horizontal ? 12 : __navMenu ? 10 : 18
       );
       setMenuWidth(targetEl.getBoundingClientRect().width - 32);
       return {
@@ -152,7 +153,7 @@ export function DMenuSub(props: DMenuSubProps) {
         },
       };
     },
-    [horizontal, setMenuWidth]
+    [__navMenu, horizontal, setMenuWidth]
   );
 
   const handleTrigger = useCallback(
@@ -227,22 +228,22 @@ export function DMenuSub(props: DMenuSubProps) {
   }, [_dMode, asyncCapture, setPopup]);
 
   useEffect(() => {
-    expand ? _expands?.add(__id) : _expands?.delete(__id);
+    expand ? _currentData?.expands.add(__id) : _currentData?.expands.delete(__id);
     _onExpandChange?.(__id, expand);
     return () => {
-      _expands?.delete(__id);
+      _currentData?.expands.delete(__id);
     };
-  }, [__id, _expands, _onExpandChange, expand]);
+  }, [__id, _currentData, _onExpandChange, expand]);
 
   useEffect(() => {
     if (_dExpandOne && _currentExpandId && _currentExpandId !== __id) {
-      for (const ids of _ids?.values() ?? []) {
+      for (const ids of _currentData?.ids.values() ?? []) {
         if (ids.includes(_currentExpandId) && ids.includes(__id)) {
           setExpand(false);
         }
       }
     }
-  }, [__id, _dExpandOne, _currentExpandId, _ids, setExpand]);
+  }, [__id, _dExpandOne, _currentExpandId, _currentData, setExpand]);
 
   useEffect(() => {
     if (!visible && popupIds.size === 0) {
@@ -267,7 +268,6 @@ export function DMenuSub(props: DMenuSubProps) {
         arr.push(child.props.__id);
         return React.cloneElement(child, {
           ...child.props,
-          'data-popup': popup,
           __level: popup ? 0 : __level + 1,
           __onFocus: (id: string) => {
             setFocusId((draft) => {
@@ -284,9 +284,9 @@ export function DMenuSub(props: DMenuSubProps) {
 
       return child;
     });
-    _ids?.set(__id, arr);
+    _currentData?.ids.set(__id, arr);
     return _childs;
-  }, [__id, __level, _ids, popup, children, setFocusId]);
+  }, [__id, __level, _currentData, popup, children, setFocusId]);
   //#endregion
 
   const contextValue = useMemo(() => ({ setPopupIds }), [setPopupIds]);
@@ -321,7 +321,7 @@ export function DMenuSub(props: DMenuSubProps) {
           {...restProps}
           id={`menu-sub-${toId(__id)}`}
           className={getClassName(className, `${dPrefix}menu-sub`, {
-            'is-active': (popup ? !currentVisible : !expand) && getAllIds(__id, _ids).includes(_activeId as string),
+            'is-active': (popup ? !currentVisible : !expand) && getAllIds(__id, _currentData?.ids).includes(_activeId as string),
             'is-expand': popup ? currentVisible : expand,
             'is-horizontal': horizontal,
             'is-icon': _dMode === 'icon' && __navMenu,

@@ -20,8 +20,10 @@ export type DMenuContextData = {
   currentExpandId: string | null;
   onExpandChange: (id: string, expand: boolean) => void;
   inMenu: boolean;
-  ids: Map<string, string[]>;
-  expands: Set<string>;
+  currentData: {
+    ids: Map<string, string[]>;
+    expands: Set<string>;
+  };
 } | null;
 export const DMenuContext = React.createContext<DMenuContextData>(null);
 
@@ -53,8 +55,10 @@ export function DMenu(props: DMenuProps) {
 
   const dPrefix = useDPrefixConfig();
 
-  const [ids] = useState(new Map<string, string[]>());
-  const [expands] = useState(new Set(dDefaultExpands));
+  const [currentData] = useState({
+    ids: new Map<string, string[]>(),
+    expands: new Set(dDefaultExpands),
+  });
 
   //#region States.
   /*
@@ -117,9 +121,9 @@ export function DMenu(props: DMenuProps) {
   const onExpandChange = useCallback(
     (id: string, expand: boolean) => {
       setCurrentExpandId(expand ? id : null);
-      onExpandsChange?.(Array.from(expands));
+      onExpandsChange?.(Array.from(currentData.expands));
     },
-    [onExpandsChange, expands, setCurrentExpandId]
+    [onExpandsChange, currentData, setCurrentExpandId]
   );
   //#endregion
 
@@ -169,9 +173,9 @@ export function DMenu(props: DMenuProps) {
       return child;
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ids?.set(Symbol('menu') as any, arr);
+    currentData.ids.set(Symbol('menu') as any, arr);
     return _childs;
-  }, [children, ids, setFocusId]);
+  }, [children, currentData, setFocusId]);
   //#endregion
 
   const contextValue = useMemo(
@@ -184,10 +188,9 @@ export function DMenu(props: DMenuProps) {
       currentExpandId,
       onExpandChange,
       inMenu,
-      ids,
-      expands,
+      currentData,
     }),
-    [dMode, dExpandTrigger, dExpandOne, activeId, _onActiveChange, currentExpandId, onExpandChange, inMenu, ids, expands]
+    [dMode, dExpandTrigger, dExpandOne, activeId, _onActiveChange, currentExpandId, onExpandChange, inMenu, currentData]
   );
 
   return (

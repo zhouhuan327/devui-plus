@@ -13,7 +13,9 @@ enableMapSet();
 export type DAnchorContextData = {
   activeHref: string | null;
   onClick: (href: string) => void;
-  links: Map<string, HTMLElement>;
+  currentData: {
+    links: Map<string, HTMLElement>;
+  };
 } | null;
 export const DAnchorContext = React.createContext<DAnchorContextData>(null);
 
@@ -39,7 +41,9 @@ export function DAnchor(props: DAnchorProps) {
 
   const dPrefix = useDPrefixConfig();
 
-  const [links] = useState(new Map<string, HTMLElement>());
+  const [currentData] = useState({
+    links: new Map<string, HTMLElement>(),
+  });
 
   //#region Refs.
   /*
@@ -108,7 +112,7 @@ export function DAnchor(props: DAnchorProps) {
       }
 
       let nearestEl: [string, number] | null = null;
-      for (const [href] of links.entries()) {
+      for (const [href] of currentData.links.entries()) {
         if (href) {
           const el = document.getElementById(href.slice(1));
           if (el) {
@@ -132,13 +136,13 @@ export function DAnchor(props: DAnchorProps) {
           const href = nearestEl[0];
           activeHref = href;
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const rect = links.get(href)!.getBoundingClientRect();
+          const rect = currentData.links.get(href)!.getBoundingClientRect();
           draft.top = rect.top + rect.height / 2 - anchorEl.getBoundingClientRect().top;
         }
       });
       setActiveHref(activeHref);
     }
-  }, [dDistance, dPage, pageEl, anchorEl, links, setActiveHref, setDotStyle]);
+  }, [dDistance, dPage, currentData, pageEl, anchorEl, setActiveHref, setDotStyle]);
 
   const onClick = useCallback(
     (href: string) => {
@@ -197,7 +201,7 @@ export function DAnchor(props: DAnchorProps) {
   }, [updateAnchor]);
   //#endregion
 
-  const contextValue = useMemo(() => ({ activeHref, onClick, links }), [activeHref, onClick, links]);
+  const contextValue = useMemo(() => ({ activeHref, onClick, currentData }), [activeHref, onClick, currentData]);
 
   return (
     <DAnchorContext.Provider value={contextValue}>

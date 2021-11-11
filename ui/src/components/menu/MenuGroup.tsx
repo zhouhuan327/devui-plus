@@ -31,7 +31,7 @@ export function DMenuGroup(props: DMenuGroupProps) {
   } = useDComponentConfig('menu-group', props);
 
   const dPrefix = useDPrefixConfig();
-  const { ids: _ids } = useCustomContext(DMenuContext);
+  const { currentData: _currentData } = useCustomContext(DMenuContext);
 
   //#region Getters.
   /*
@@ -98,9 +98,9 @@ export function DMenuGroup(props: DMenuGroupProps) {
 
       return child;
     });
-    _ids?.set(__id, arr);
+    _currentData?.ids.set(__id, arr);
     return _childs;
-  }, [__id, __level, __onFocus, __onBlur, _ids, children]);
+  }, [__id, __level, __onFocus, __onBlur, _currentData, children]);
   //#endregion
 
   return (

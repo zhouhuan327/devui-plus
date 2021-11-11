@@ -3,7 +3,7 @@ import type { DPlacement } from '../../utils/position';
 import type { DTransitionStateList, DTransitionRef } from '../_transition';
 
 import { isUndefined } from 'lodash';
-import React, { useCallback, useEffect, useMemo, useImperativeHandle } from 'react';
+import React, { useCallback, useEffect, useMemo, useImperativeHandle, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { useImmer } from 'use-immer';
 
@@ -58,6 +58,9 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
 
   const dPrefix = useDPrefixConfig();
   const asyncCapture = useAsync();
+  const [currentData] = useState({
+    visible: false,
+  });
 
   //#region Refs.
   /*
@@ -297,9 +300,9 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
     if (popupEl && targetEl.current) {
       const setVisible = (visible?: boolean) => {
         if (targetEl.current) {
-          const _visible = isUndefined(visible) ? (targetEl.current.dataset['dPopupTrigger'] === 'true' ? false : true) : visible;
-          if (targetEl.current.dataset['dPopupTrigger'] !== String(_visible)) {
-            targetEl.current.dataset['dPopupTrigger'] = String(_visible);
+          const _visible = isUndefined(visible) ? !currentData.visible : visible;
+          if (currentData.visible !== _visible) {
+            currentData.visible = _visible;
             setAutoVisible(_visible);
             onTrigger?.(_visible);
           }
@@ -375,7 +378,7 @@ export const DPopup = React.forwardRef<DPopupRef, DPopupProps>((props, ref) => {
     return () => {
       asyncCapture.deleteGroup(asyncId);
     };
-  }, [dMouseEnterDelay, dMouseLeaveDelay, dTrigger, onTrigger, asyncCapture, popupRefContent, targetEl, setAutoVisible]);
+  }, [dMouseEnterDelay, dMouseLeaveDelay, dTrigger, onTrigger, asyncCapture, currentData, popupRefContent, targetEl, setAutoVisible]);
 
   useEffect(() => {
     const [asyncGroup, asyncId] = asyncCapture.createGroup();

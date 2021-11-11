@@ -1,5 +1,5 @@
 import { isFunction, isNumber, isString, isUndefined } from 'lodash';
-import React, { useMemo, useEffect, useImperativeHandle } from 'react';
+import React, { useMemo, useEffect, useImperativeHandle, useState } from 'react';
 import { useImmer } from 'use-immer';
 
 import { useAsync } from '../../hooks';
@@ -41,6 +41,10 @@ export const DTransition = React.forwardRef<DTransitionRef, DTransitionProps>((p
   const { dVisible = false, dStateList, dCallbackList, dAutoHidden = true, dSkipFirst = true, children } = props;
 
   const asyncCapture = useAsync();
+
+  const [currentData] = useState<{ visible?: boolean }>({
+    visible: undefined,
+  });
 
   //#region States.
   /*
@@ -102,7 +106,7 @@ export const DTransition = React.forwardRef<DTransitionRef, DTransitionProps>((p
   }, [children, setEl]);
   //#endregion
 
-  if (el && isUndefined(el.dataset['dVisible'])) {
+  if (el && isUndefined(currentData.visible) && !dVisible) {
     cssRecord.setCss(el, { display: 'none' });
   }
 
@@ -145,12 +149,11 @@ export const DTransition = React.forwardRef<DTransitionRef, DTransitionProps>((p
    */
   useEffect(() => {
     if (el) {
-      if (dSkipFirst && isUndefined(el.dataset['dVisible'])) {
-        el.dataset['dVisible'] = String(dVisible);
-        cssRecord.backCss(el);
+      if (dSkipFirst && isUndefined(currentData.visible)) {
+        currentData.visible = dVisible;
         dAutoHidden && cssRecord.setCss(el, { display: dVisible ? '' : 'none' });
-      } else if (el.dataset['dVisible'] !== String(dVisible)) {
-        el.dataset['dVisible'] = String(dVisible);
+      } else if (currentData.visible !== dVisible) {
+        currentData.visible = dVisible;
         cssRecord.backCss(el);
         asyncCapture.clearAll();
         throttle.clearTids();
@@ -190,7 +193,7 @@ export const DTransition = React.forwardRef<DTransitionRef, DTransitionProps>((p
         }
       }
     }
-  }, [dCallbackList, dStateList, el, dVisible, dAutoHidden, dSkipFirst, asyncCapture, cssRecord, throttle]);
+  }, [dCallbackList, dStateList, el, dVisible, dAutoHidden, dSkipFirst, asyncCapture, currentData, cssRecord, throttle]);
   //#endregion
 
   useImperativeHandle(

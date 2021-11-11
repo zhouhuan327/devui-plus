@@ -1,5 +1,5 @@
 import { isUndefined } from 'lodash';
-import React, { useEffect, useImperativeHandle, useMemo } from 'react';
+import React, { useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { useImmer } from 'use-immer';
 
 import { useAsync } from '../../hooks';
@@ -8,6 +8,7 @@ export type DTriggerType = 'hover' | 'focus' | 'click';
 
 export interface DTriggerProps {
   dTrigger?: DTriggerType | DTriggerType[];
+  dDefaultState?: boolean;
   dMouseEnterDelay?: number;
   dMouseLeaveDelay?: number;
   dDisabled?: boolean;
@@ -16,9 +17,13 @@ export interface DTriggerProps {
 }
 
 export const DTrigger = React.forwardRef<HTMLElement, DTriggerProps>((props, ref) => {
-  const { dTrigger, dMouseEnterDelay = 150, dMouseLeaveDelay = 200, dDisabled, children, onTrigger } = props;
+  const { dTrigger, dDefaultState = false, dMouseEnterDelay = 150, dMouseLeaveDelay = 200, dDisabled, children, onTrigger } = props;
 
   const asyncCapture = useAsync();
+
+  const [currentData] = useState({
+    state: dDefaultState,
+  });
 
   //#region States.
   /*
@@ -41,9 +46,9 @@ export const DTrigger = React.forwardRef<HTMLElement, DTriggerProps>((props, ref
       if (el) {
         const setState = (state?: boolean) => {
           if (el) {
-            const _state = isUndefined(state) ? (el.dataset['dTrigger'] === 'true' ? false : true) : state;
-            if (el.dataset['dTrigger'] !== String(_state)) {
-              el.dataset['dTrigger'] = String(_state);
+            const _state = isUndefined(state) ? !currentData.state : state;
+            if (currentData.state !== _state) {
+              currentData.state = _state;
               onTrigger?.(_state);
             }
           }
@@ -103,7 +108,7 @@ export const DTrigger = React.forwardRef<HTMLElement, DTriggerProps>((props, ref
         asyncCapture.deleteGroup(asyncId);
       };
     }
-  }, [dMouseEnterDelay, dMouseLeaveDelay, dTrigger, dDisabled, onTrigger, asyncCapture, el]);
+  }, [dMouseEnterDelay, dMouseLeaveDelay, dTrigger, dDisabled, onTrigger, asyncCapture, currentData, el]);
 
   //#region React.cloneElement.
   /*
